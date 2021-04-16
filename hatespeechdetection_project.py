@@ -77,6 +77,7 @@ from transformers import pipeline
 from happytransformer import HappyTextClassification
 from ekphrasis.classes.segmenter import Segmenter
 from emot.emo_unicode import UNICODE_EMO, EMOTICONS
+from sklearn.model_selection import train_test_split
 
 """## Importing the Dataset
 
@@ -431,14 +432,52 @@ happy_tc = HappyTextClassification("BERT", "Hate-speech-CNERG/dehatebert-mono-en
 #happy_tc = HappyTextClassification("BERT", "Hate-speech-CNERG/bert-base-uncased-hatexplain")
 
 #predict hate speech or not
-result = happy_tc.classify_text("fuck chinks")
+result = happy_tc.classify_text("xx xxx")
 print(result)
 print(result.label)
 print(result.score)
 
+"""### Train & Eval"""
+
+#create a train_eval file from the dataset
+#rename cols of tweet df
+tweet_df.rename(columns={"hate_speech": "label","tweet": "text" }, inplace=True)
+
+#convert label column to int
+tweet_df.label = tweet_df.label.astype(int)
+
+# split the data into train and test set
+train_eval, test = train_test_split(tweet_df, test_size=0.2, random_state=101, shuffle=False)
+
+#extract text and label
+train_eval = train_eval[['text', 'label']]
+test = test[['text', 'label']]
+
+#save dfs to csv
+train_eval.to_csv("train-eval.csv")
+test.to_csv("test.csv")
+
+#fine tune to the dataset
+#happy_tc.train("../../data/tc/train-eval.csv")
+
+#fine tune to the dataset
+happy_tc.train("/content/train-eval.csv")
+
+#eval the fine tuned model
+result = happy_tc.eval("/content/train-eval.csv")
+print(type(result))  # <class 'happytransformer.happy_trainer.EvalResult'>
+print(result)  # EvalResult(eval_loss=0.007262040860950947)
+print(result.loss)  # 0.007262040860950947
 
 
 
+#test the model
+result = happy_tc.test("/content/test.csv")
+print(type(result))  # <class 'list'>
+print(result)  # [TextClassificationResult(label='LABEL_1', score=0.9998401999473572), TextClassificationResult(label='LABEL_0', score=0.9772131443023682)...
+print(type(result[0]))  # <class 'happytransformer.happy_text_classification.TextClassificationResult'>
+print(result[0])  # TextClassificationResult(label='LABEL_1', score=0.9998401999473572)
+print(result[0].label)  # LABEL_1
 
 """# Challenging the Solution
 
