@@ -413,7 +413,13 @@ candidate_labels = ["violent", "offensive", "profane"]
 
 classifier(sequence, candidate_labels,multi_label=True)
 
-
+#doing a list
+>>> results = classifier(["We are very happy to show you the 🤗 Transformers library.",
+...            "We hope you don't hate it."])
+>>> for result in results:
+...     print(f"label: {result['label']}, with score: {round(result['score'], 4)}")
+label: POSITIVE, with score: 0.9998
+label: NEGATIVE, with score: 0.5309
 
 """## Semi-Supervised Hate Speech Detection
 
@@ -478,6 +484,428 @@ print(result)  # [TextClassificationResult(label='LABEL_1', score=0.999840199947
 print(type(result[0]))  # <class 'happytransformer.happy_text_classification.TextClassificationResult'>
 print(result[0])  # TextClassificationResult(label='LABEL_1', score=0.9998401999473572)
 print(result[0].label)  # LABEL_1
+
+"""##Fine-tune"""
+
+!pip install nlp
+
+!pip install optuna
+
+!pip install tqdm
+
+"""#Transformer Libs"""
+
+#import libs
+import nlp
+import optuna
+import argparse
+import transformers
+from transformers import BertModel, BertTokenizer, AdamW, get_linear_schedule_with_warmup
+import torch
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import torch.nn.functional as F
+from pylab import rcParams
+import matplotlib.pyplot as plt
+from matplotlib import rc
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix, classification_report,f1_score, precision_score, recall_score, average_precision_score
+from collections import defaultdict
+from textwrap import wrap
+from torch import nn, optim
+from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
+
+"""> trial another"""
+
+#creating dataset for BERT
+#split dataset
+#df = pd.read_csv("clean")
+tw = tweets_df.copy(deep=True)
+
+#reset index
+tw.reset_index(inplace=True)
+
+#convert label column to int
+tw.hate_speech = tw.hate_speech.astype(int)
+
+
+# Creating training dataframe according to BERT by adding the required columns
+df_bert = pd.DataFrame({
+    'id':range(len(tw)),
+    'label':tw.iloc[:,3],
+    'alpha':['a']*tw.shape[0],
+    'text': tw.iloc[:,2].replace(r'\n', ' ', regex=True)
+})
+
+
+
+# split the data into train and test set
+train_dataset, test_dataset = train_test_split(df_bert, test_size=0.2, random_state=101, shuffle=False)
+
+# Splitting training data file into *train* and *dev*
+df_bert_train, df_bert_dev = train_test_split(df_bert, test_size=0.1)
+
+df_bert_train.head()
+
+#test dataset
+# Creating test dataframe according to BERT
+df_bert_test = pd.DataFrame({
+    'id':range(len(test_dataset)),
+    'text': test_dataset.iloc[:,3].replace(r'\n', ' ', regex=True)
+})
+
+df_bert_test.head()
+
+#saving as tsv
+
+# Saving dataframes to .tsv format as required by BERT
+df_bert_train.to_csv('train.tsv', sep='\t', index=False, header=False)
+df_bert_dev.to_csv('dev.tsv', sep='\t', index=False, header=False)
+df_bert_test.to_csv('test.tsv', sep='\t', index=False, header=False)
+
+#add emojis to tokenizer
+from transformers import BertTokenizer
+
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
+s =" 😃 hello how are you"
+
+tokenizer.add_tokens(["😃" ,"😡","🤬", "🖕","💯"])
+print(tokenizer.tokenize(s))
+
+#increase vocab
+# Let's see how to increase the vocabulary of Bert model and tokenizer
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+model = BertModel.from_pretrained('bert-base-uncased')
+
+num_added_toks = tokenizer.add_tokens(["😃" ,"😡","🤬", "🖕","💯"])
+print('We have added', num_added_toks, 'tokens')
+ # Notice: resize_token_embeddings expect to receive the full size of the new vocabulary, i.e., the length of the tokenizer.
+model.resize_token_embeddings(len(tokenizer))
+
+"""#Prototype Model"""
+
+#split dataset
+#df = pd.read_csv("clean")
+tw = tweets_df.copy(deep=True)
+
+#reset index
+tw.reset_index(inplace=True)
+
+#rename cols of tweet df
+tw.rename(columns={"hate_speech": "label","tweet": "text" }, inplace=True)
+
+#convert label column to int
+tw.label = tw.label.astype(int)
+
+from transformers import DistilBertTokenizerFast
+#tokenizer = DistilBertTokenizerFast.from_pretrained('distilbert-base-uncased')
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
+#choose sequence length
+token_lens = []
+for txt in tw.text:
+  tokens = tokenizer.encode(txt, max_length=512, truncation=True)
+  token_lens.append(len(tokens))
+
+#plot dist to det length
+sns.displot(token_lens)
+plt.xlim([0, 256])
+plt.xlabel('Token count')
+plt.show()
+
+#we'll set maxlength at 140
+MAX_LEN = 140
+
+#split data
+RANDOM_SEED = 101
+df_train, df_test = train_test_split(tw, test_size=0.2, random_state=RANDOM_SEED)
+df_val, df_test = train_test_split(df_test, test_size=0.5, random_state=RANDOM_SEED)
+df_train.shape, df_val.shape, df_test.shape
+
+"""##funcs"""
+
+#create dataset
+class KenyaHateSpeechDataset(Dataset):
+  def __init__(self, reviews, targets, tokenizer, max_len):
+    self.reviews = reviews
+    self.targets = targets
+    self.tokenizer = tokenizer
+    self.max_len = max_len
+  def __len__(self):
+    return len(self.reviews)
+  def __getitem__(self, item):
+    review = str(self.reviews[item])
+    target = self.targets[item]
+    encoding = self.tokenizer.encode_plus(
+      review,
+      add_special_tokens=True,
+      max_length=self.max_len,
+      return_token_type_ids=False,
+      padding="max_length",
+      return_attention_mask=True,
+      return_tensors='pt',
+      truncation=True
+    )
+    return {
+      'review_text': review,
+      'input_ids': encoding['input_ids'].flatten(),
+      'attention_mask': encoding['attention_mask'].flatten(),
+      'targets': torch.tensor(self.targets[item], dtype=torch.long)
+    }
+
+def create_data_loader(df, tokenizer, max_len, batch_size):
+  ds = KenyaHateSpeechDataset(
+    reviews=df.text.to_numpy(),
+    targets=df.label.to_numpy(),
+    tokenizer=tokenizer,
+    max_len=max_len,
+    
+  )
+  return DataLoader(
+    ds,
+    batch_size=batch_size,
+    num_workers=1
+  )
+BATCH_SIZE = 4
+EPOCHS=2
+train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN, BATCH_SIZE)
+val_data_loader = create_data_loader(df_val, tokenizer, MAX_LEN, BATCH_SIZE)
+test_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN, BATCH_SIZE)
+
+#view example batch
+data = next(iter(train_data_loader))
+data.keys()
+
+print(data['input_ids'].shape)
+print(data['attention_mask'].shape)
+print(data['targets'].shape)
+
+#load pre-trained model
+PRE_TRAINED_MODEL_NAME = 'bert-base-uncased'
+bert_model = BertModel.from_pretrained(PRE_TRAINED_MODEL_NAME,return_dict=False)
+
+"""##Building Classifier"""
+
+class HateSpeechClassifier(nn.Module):
+  def __init__(self, n_classes):
+    super(HateSpeechClassifier, self).__init__()
+    self.bert = BertModel.from_pretrained(PRE_TRAINED_MODEL_NAME)
+    self.drop = nn.Dropout(p=0.3)
+    self.out = nn.Linear(self.bert.config.hidden_size, n_classes)
+    self.softmax = nn.Softmax(dim=1)
+
+  def forward(self, input_ids, attention_mask):
+    _, pooled_output = self.bert(
+      input_ids=input_ids,
+      attention_mask=attention_mask,
+      return_dict=False
+    )
+    #return_dict=False
+    output = self.drop(pooled_output)
+    output = self.out(output)
+    return self.softmax(output)
+
+#instantiate custom model
+class_names = ['Hate','Normal']
+model = HateSpeechClassifier(len(class_names))
+model = model.to(device)
+
+#testing on our tokens
+input_ids = data['input_ids'].to(device)
+attention_mask = data['attention_mask'].to(device)
+
+print(input_ids.shape)
+print(attention_mask.shape)
+
+#using model to predict as test before training
+model(input_ids, attention_mask)
+
+"""##training"""
+
+EPOCHS = 2
+optimizer = AdamW(model.parameters(), lr=2e-5, correct_bias=False)
+
+total_steps = len(train_data_loader) * EPOCHS
+
+scheduler = get_linear_schedule_with_warmup(
+    optimizer,
+    num_warmup_steps = 0,
+    num_training_steps = total_steps
+)
+
+loss_fn = nn.CrossEntropyLoss().to(device)
+
+#help func to training epoch
+def train_epoch(
+    model,
+    data_loader,
+    loss_fn,
+    optimizer,
+    device,
+    scheduler,
+    n_examples
+):
+
+  model = model.train()
+
+  losses = []
+  correct_predictions = 0
+
+  for d in data_loader:
+    input_ids = d['input_ids'].to(device)
+    attention_mask = d['attention_mask'].to(device)
+    targets = d['targets'].to(device)
+
+    outputs = model(
+        input_ids=input_ids,
+        attention_mask=attention_mask
+    )
+
+    _, preds = torch.max(outputs, dim=1)
+    loss = loss_fn(outputs, targets)
+
+    correct_predictions += torch.sum(preds == targets)
+    losses.append(loss.item())
+
+    loss.backward()
+    nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+    optimizer.step()
+    scheduler.step()
+    optimizer.zero_grad()
+
+  return correct_predictions.double() / n_examples, np.mean(losses)
+
+#eval current model
+
+def eval_model(model, data_loader, loss_fn,device,n_examples):
+  model = model.eval()
+
+  losses = []
+  correct_predictions = 0
+
+  with torch.no_grad():
+    for d in data_loader:
+
+      input_ids = d['input_ids'].to(device)
+      attention_mask = d['attention_mask'].to(device)
+      targets = d['targets'].to(device)
+
+      outputs = model(
+          input_ids=input_ids,
+          attention_mask=attention_mask
+      )
+
+      _, preds = torch.max(outputs, dim=1)
+      loss = loss_fn(outputs, targets)
+
+      correct_predictions += torch.sum(preds == targets)
+      losses.append(loss.item())
+
+  return correct_predictions.double() / n_examples, np.mean(losses)
+
+# Commented out IPython magic to ensure Python compatibility.
+# #hist dict to store loss and accuracy
+# %%time
+# 
+# history = defaultdict(list)
+# best_accuracy = 0
+# 
+# for epoch in range(EPOCHS):
+# 
+#   print(f'Epoch {epoch + 1}/{EPOCHS}')
+#   print('-' * 10)
+# 
+#   train_acc, train_loss = train_epoch(
+#       model,
+#       train_data_loader,
+#       loss_fn,
+#       optimizer,
+#       device,
+#       scheduler,
+#       len(df_train)
+#   )
+# 
+#   print(f'Train loss {train_loss} accuracy {train_acc}')
+# 
+# 
+#   val_acc, val_loss = eval_model(
+#       model,
+#       val_data_loader,
+#       loss_fn,
+#       device,
+#       len(df_val)
+#   )
+# 
+#   print(f'Val loss {val_loss} accuracy {val_acc}')
+#   print()
+# 
+#   history['train_acc'].append(train_acc)
+#   history['train_loss'].append(train_loss)
+# 
+#   history['val_acc'].append(val_acc)
+#   history['val_loss'].append(val_loss)
+# 
+#   if val_acc > best_accuracy:
+#     torch.save(model, 'model.pth')
+#     best_accuracy = val_acc
+# 
+#
+
+
+
+""">mess on-wards"""
+
+#model
+#model = BertModel.from_pretrained("distilbert-base-uncased")
+model = BertModel.from_pretrained("Hate-speech-CNERG/dehatebert-mono-english")
+model = model.to(device)
+
+#model_ft = models.inception_v3(pretrained=True)
+#model.aux_logits=False
+
+#fine tune with trainer
+from transformers import DistilBertForSequenceClassification, Trainer, TrainingArguments, DistilBertConfig
+
+def compute_metrics(pred):
+    labels = pred.label_ids
+    preds = pred.predictions.argmax(-1)
+    precision, recall, f1, _ = precision_recall_fscore_support(labels, preds, average='binary')
+    acc = accuracy_score(labels, preds)
+    return {
+        'accuracy': acc,
+        'f1': f1,
+        'precision': precision,
+        'recall': recall
+    }
+
+training_args = TrainingArguments(
+    output_dir='./results',          # output directory
+    num_train_epochs=3,              # total number of training epochs
+    per_device_train_batch_size=16,  # batch size per device during training
+    per_device_eval_batch_size=64,   # batch size for evaluation
+    warmup_steps=500,                # number of warmup steps for learning rate scheduler
+    weight_decay=0.01,               # strength of weight decay
+    logging_dir='./logs',            # directory for storing logs
+    logging_steps=10,
+)
+
+#config = BertConfig.from_pretrained(MODEL_NAME)
+#config = DistilBertConfig.from_pretrained("distilbert-base-uncased")
+#configuration = DistilBertConfig(vocab_size=128)
+model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
+#model.resize_token_embeddings(len(tokenizer))
+
+trainer = Trainer(
+    model=model,                         # the instantiated 🤗 Transformers model to be trained
+    args=training_args,                  # training arguments, defined above
+    compute_metrics=compute_metrics,     # compute metrics, defined above
+    train_dataset=train_dataset,         # training dataset
+    eval_dataset=val_dataset             # evaluation dataset
+)
+
+trainer.train()
 
 """# Challenging the Solution
 
