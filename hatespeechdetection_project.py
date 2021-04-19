@@ -43,6 +43,8 @@ Original file is located at
 > This was evaluated against the metric of success (after implementation of solution)
 
 ## Importing the libraries
+
+Please Change Runtime to GPU before running this notebook
 """
 
 #@title lib installation
@@ -122,6 +124,9 @@ tweets_df = tweets_df.drop_duplicates()
 #check number of records
 tweets_df.shape
 
+#change column name
+tweets_df.rename(columns={'hate_speech(1=hspeech, 0=nohspeech)': "hate_speech"}, inplace=True)
+
 """## Pre-processing
 
 > In this section we'll find instances of usersnames, numbers, hashtags, URLs and common emoticons and replace them with the tokens: "user","number","hashtag","url","emoticon".
@@ -131,9 +136,6 @@ counterparts e.g. converting hashtag “#notsexist” to “not sexist”.
 
 > Punctuation marks, extra delimiting characters are removed, but stop words are kept because our proposed model trains the sequence of words in a text directly. We also convert all tweets to lower case.
 """
-
-#change column name
-tweets_df.rename(columns={'hate_speech(1=hspeech, 0=nohspeech)': "hate_speech"}, inplace=True)
 
 # #create copy to work with
 # tweet_df = tweets_df.copy(deep=True)
@@ -285,8 +287,6 @@ tweet_df.rename(columns={'no_num_twt': "tweet"}, inplace=True)
 #preview new df
 tweet_df.tail()
 
-
-
 """## Feature Engineering"""
 
 # use tweet-preprocessor to include some useful information
@@ -298,9 +298,11 @@ tweet_df.tail()
 
 """# Exploratory Data Analysis"""
 
-#proportion of hate speech
-
 # let us plot histograms to visualize patterns in the data
+##create copy to work with
+tweet_df = tweets_df.copy(deep=True)
+
+#plot hist
 tweet_df.hist(figsize = (20,10))
 plt.show()
 
@@ -311,22 +313,12 @@ plt.title('Checking for outliers using boxplots')
 # The boxplots below indicate the outliers in each of the numerical columns
 
 # let us see how the labels are distributed in our dataset
-# plt_hate = tweet_df.copy(deep=True)
-# plt_hate.rename
-# tweets_df.rename(columns={'hate_speech(1=hspeech, 0=nohspeech)': "hate_speech"}, inplace=True)
-
-
 #plot countplot
 plt.figure(figsize=(10,5))
 sns.countplot(x="hate_speech", data = tweet_df)
 plt.title("Number of Hate Speech Posts")
 
 plt.show()
-
-
-# neutral labels are the highest in our data
-
-
 
 # # extracting the number of examples of each class
 # hate = tweet_df[tweet_df['hate_speech'] == 1]
@@ -341,7 +333,7 @@ plt.show()
 # plt.title('Propertion of examples')
 # plt.show()
 
-# Most common words
+# Most common words using hashtags
 from wordcloud import WordCloud
 from nltk import FreqDist
 #Frequency of words
@@ -353,7 +345,7 @@ plt.imshow(wc, interpolation="bilinear")
 plt.axis("off")
 plt.show()
 
-"""# Implementing the Solution
+"""# Implementing the Solution First Approach
 
 ## Unsupervised Topic Modeling
 
@@ -361,49 +353,26 @@ plt.show()
 """
 
 #Instantiate class pipeline from transformers
-#classifier = pipeline("zero-shot-classification")
+classifier = pipeline("zero-shot-classification")
 # classifier = pipeline("zero-shot-classification", device=0) # to utilize GPU
 
 # Zero-shot classification in 100 languages
 # A pipeline for languages other than English,
 # a trained cross-lingual model on top of XLM RoBERTa:
 
-classifier = pipeline("zero-shot-classification", model='joeddav/xlm-roberta-large-xnli')
+#classifier = pipeline("zero-shot-classification", model='joeddav/xlm-roberta-large-xnli')
 
 #multi-lingual
 sequence = "Wewe ni mavi ya kuku"
 candidate_labels = ["violent", "offensive", "profane"]
 
-res = classifier(sequence, candidate_labels,multi_label=True)
+res = classifier(sequence, candidate_labels,multi_label=False)
 
 print(res['labels'])
 print(res['scores'])
 
-# for multi-class classification, we pass multi_class=True. 
-# In this case, the scores will be independent, but each will fall between 0 and 1.
-
-#e.g.
-#sequence = "Who are you voting for in 2020?"
-
-#candidate_labels = ["politics", "public health", "economics", "elections"]
-
-#classifier(sequence, candidate_labels, multi_class=True)
-
-
-#candidate_labels = ["politics", "public health", "economics", "elections"]
-
-candidate_labels = ["violent", "offensive", "profane"]
-
-
-# #cluster tweets to sub-classes
-# twl_1 = list(tweet_df['tweet'])
-# sub_group = []
-# for t in range(len(twl_1)):
-#   preds = classifier(twl_1, candidate_labels, multi_label=True)
-#   sub_group.append(preds)
-
-#create a dataframe to hold the new tweets
-#no_num_df = pd.DataFrame(no_num, columns=['no_num_twt'])
+print(res['labels'])
+print(res['scores'])
 
 #from transformers import pipeline english only
 #classifier = pipeline("zero-shot-classification")
@@ -413,17 +382,19 @@ candidate_labels = ["violent", "offensive", "profane"]
 
 classifier(sequence, candidate_labels,multi_label=True)
 
+"""> Predict text in a list:"""
+
 #doing a list
->>> results = classifier(["We are very happy to show you the 🤗 Transformers library.",
-...            "We hope you don't hate it."])
->>> for result in results:
-...     print(f"label: {result['label']}, with score: {round(result['score'], 4)}")
-label: POSITIVE, with score: 0.9998
-label: NEGATIVE, with score: 0.5309
+# results = classifier(["We are very happy to show you the 🤗 Transformers library.",
+#                           "We hope you don't hate it."])
+# for result in results:
+#   print(f"label: {result['label']}, with score: {round(result['score'], 4)}")
 
 """## Semi-Supervised Hate Speech Detection
 
-### Optimization/Tuning
+### Default Transformers (using HappyTransformers):
+
+#### Optimization/Tuning
 """
 
 #Create A HappyTextClassification Object (ROBERTA or BERT)
@@ -443,7 +414,7 @@ print(result)
 print(result.label)
 print(result.score)
 
-"""### Train & Eval"""
+"""#### Train & Eval"""
 
 #create a train_eval file from the dataset
 #rename cols of tweet df
@@ -464,9 +435,6 @@ train_eval.to_csv("train-eval.csv")
 test.to_csv("test.csv")
 
 #fine tune to the dataset
-#happy_tc.train("../../data/tc/train-eval.csv")
-
-#fine tune to the dataset
 happy_tc.train("/content/train-eval.csv")
 
 #eval the fine tuned model
@@ -475,7 +443,7 @@ print(type(result))  # <class 'happytransformer.happy_trainer.EvalResult'>
 print(result)  # EvalResult(eval_loss=0.007262040860950947)
 print(result.loss)  # 0.007262040860950947
 
-
+"""####Test model"""
 
 #test the model
 result = happy_tc.test("/content/test.csv")
@@ -485,7 +453,12 @@ print(type(result[0]))  # <class 'happytransformer.happy_text_classification.Tex
 print(result[0])  # TextClassificationResult(label='LABEL_1', score=0.9998401999473572)
 print(result[0].label)  # LABEL_1
 
-"""##Fine-tune"""
+"""# Implementing the Solution Second Approach
+
+## Semi-Supervised KenyaHateSpeech Detection Model
+
+###Transformer Libs
+"""
 
 !pip install nlp
 
@@ -493,14 +466,12 @@ print(result[0].label)  # LABEL_1
 
 !pip install tqdm
 
-"""#Transformer Libs"""
-
 #import libs
-import nlp
+#import nlp
 import optuna
 import argparse
 import transformers
-from transformers import BertModel, BertTokenizer, AdamW, get_linear_schedule_with_warmup
+from transformers import BertModel, BertTokenizer, AdamW, get_linear_schedule_with_warmup, DistilBertModel, DistilBertConfig
 import torch
 import numpy as np
 import pandas as pd
@@ -517,53 +488,7 @@ from torch import nn, optim
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 
-"""> trial another"""
-
-#creating dataset for BERT
-#split dataset
-#df = pd.read_csv("clean")
-tw = tweets_df.copy(deep=True)
-
-#reset index
-tw.reset_index(inplace=True)
-
-#convert label column to int
-tw.hate_speech = tw.hate_speech.astype(int)
-
-
-# Creating training dataframe according to BERT by adding the required columns
-df_bert = pd.DataFrame({
-    'id':range(len(tw)),
-    'label':tw.iloc[:,3],
-    'alpha':['a']*tw.shape[0],
-    'text': tw.iloc[:,2].replace(r'\n', ' ', regex=True)
-})
-
-
-
-# split the data into train and test set
-train_dataset, test_dataset = train_test_split(df_bert, test_size=0.2, random_state=101, shuffle=False)
-
-# Splitting training data file into *train* and *dev*
-df_bert_train, df_bert_dev = train_test_split(df_bert, test_size=0.1)
-
-df_bert_train.head()
-
-#test dataset
-# Creating test dataframe according to BERT
-df_bert_test = pd.DataFrame({
-    'id':range(len(test_dataset)),
-    'text': test_dataset.iloc[:,3].replace(r'\n', ' ', regex=True)
-})
-
-df_bert_test.head()
-
-#saving as tsv
-
-# Saving dataframes to .tsv format as required by BERT
-df_bert_train.to_csv('train.tsv', sep='\t', index=False, header=False)
-df_bert_dev.to_csv('dev.tsv', sep='\t', index=False, header=False)
-df_bert_test.to_csv('test.tsv', sep='\t', index=False, header=False)
+"""> Try and add emojis to the tokenizer??:"""
 
 #add emojis to tokenizer
 from transformers import BertTokenizer
@@ -584,7 +509,7 @@ print('We have added', num_added_toks, 'tokens')
  # Notice: resize_token_embeddings expect to receive the full size of the new vocabulary, i.e., the length of the tokenizer.
 model.resize_token_embeddings(len(tokenizer))
 
-"""#Prototype Model"""
+"""##Prototype Model"""
 
 #split dataset
 #df = pd.read_csv("clean")
@@ -599,34 +524,36 @@ tw.rename(columns={"hate_speech": "label","tweet": "text" }, inplace=True)
 #convert label column to int
 tw.label = tw.label.astype(int)
 
-from transformers import DistilBertTokenizerFast
+class_names = ["Normal", "Hate"]
+
+#view data distribution for class imbalance
+ax = sns.countplot(x = tw['label'])
+plt.xlabel('Speech Type')
+ax.set_xticklabels(class_names)
+plt.show()
+
+"""###Pre-processing Data"""
+
+#load tokenizer for the relevant model that will be used
 #tokenizer = DistilBertTokenizerFast.from_pretrained('distilbert-base-uncased')
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
-#choose sequence length
+#choose sequence length (number of words to encode max)
 token_lens = []
 for txt in tw.text:
   tokens = tokenizer.encode(txt, max_length=512, truncation=True)
   token_lens.append(len(tokens))
 
-#plot dist to det length
+#plot dist to det length of words in dataset
 sns.displot(token_lens)
 plt.xlim([0, 256])
 plt.xlabel('Token count')
 plt.show()
 
-#we'll set maxlength at 140
-MAX_LEN = 140
+"""### Defining Helper Functions used for modeling in Pytorch"""
 
-#split data
-RANDOM_SEED = 101
-df_train, df_test = train_test_split(tw, test_size=0.2, random_state=RANDOM_SEED)
-df_val, df_test = train_test_split(df_test, test_size=0.5, random_state=RANDOM_SEED)
-df_train.shape, df_val.shape, df_test.shape
-
-"""##funcs"""
-
-#create dataset
+#create dataset as expected by Pytorch
+#create a class object called KenyaHateSpeechDataset
 class KenyaHateSpeechDataset(Dataset):
   def __init__(self, reviews, targets, tokenizer, max_len):
     self.reviews = reviews
@@ -655,6 +582,18 @@ class KenyaHateSpeechDataset(Dataset):
       'targets': torch.tensor(self.targets[item], dtype=torch.long)
     }
 
+# define/set the constants that will be used during modeling
+MAX_LEN = 140
+BATCH_SIZE=16
+EPOCHS = 5
+
+#split data to train, test and validation
+RANDOM_SEED = 101
+df_train, df_test = train_test_split(tw, test_size=0.2, random_state=RANDOM_SEED)
+df_val, df_test = train_test_split(df_test, test_size=0.5, random_state=RANDOM_SEED)
+df_train.shape, df_val.shape, df_test.shape
+
+#create a data loader that wil be used to load the datasets created above every epoch for training, validation and testing
 def create_data_loader(df, tokenizer, max_len, batch_size):
   ds = KenyaHateSpeechDataset(
     reviews=df.text.to_numpy(),
@@ -666,65 +605,84 @@ def create_data_loader(df, tokenizer, max_len, batch_size):
   return DataLoader(
     ds,
     batch_size=batch_size,
-    num_workers=1
+    num_workers=2
   )
-BATCH_SIZE = 4
-EPOCHS=2
+
+#create dataloaders for each dataset
 train_data_loader = create_data_loader(df_train, tokenizer, MAX_LEN, BATCH_SIZE)
 val_data_loader = create_data_loader(df_val, tokenizer, MAX_LEN, BATCH_SIZE)
 test_data_loader = create_data_loader(df_test, tokenizer, MAX_LEN, BATCH_SIZE)
 
-#view example batch
+#view example batch to confirm that the loader is working
 data = next(iter(train_data_loader))
 data.keys()
 
+print(data['input_ids'])
 print(data['input_ids'].shape)
 print(data['attention_mask'].shape)
 print(data['targets'].shape)
 
-#load pre-trained model
+#load pre-trained model that will be the base of our model
+#PRE_TRAINED_MODEL_NAME = 'distilbert-base-uncased'
+#bert_model = DistilBertModel.from_pretrained(PRE_TRAINED_MODEL_NAME)
+
+#base uncased version was chosen to save on computational cost 
 PRE_TRAINED_MODEL_NAME = 'bert-base-uncased'
 bert_model = BertModel.from_pretrained(PRE_TRAINED_MODEL_NAME,return_dict=False)
 
-"""##Building Classifier"""
+"""###Building Classifier"""
+
+#CUDA_LAUNCH_BLOCKING=1
+
+#building our custom model on top of the loaded pre-trained Bert model
+#adding a dropout layer and a Linear layer on top of existing layers of the Bert-base-uncased model
+#the forward is also defined where the forward pass/propagation through the model during training happens
+#which gives a result which will be the probability of the class (softmax)
 
 class HateSpeechClassifier(nn.Module):
-  def __init__(self, n_classes):
+  def __init__(self, n_classes=2):
     super(HateSpeechClassifier, self).__init__()
-    self.bert = BertModel.from_pretrained(PRE_TRAINED_MODEL_NAME)
+    self.bert = BertModel.from_pretrained(PRE_TRAINED_MODEL_NAME,return_dict=False)
+    #config = DistilBertConfig.from_pretrained( PRE_TRAINED_MODEL_NAME, output_hidden_states=True)    
+    #self.bert = DistilBertModel.from_pretrained(PRE_TRAINED_MODEL_NAME)
     self.drop = nn.Dropout(p=0.3)
-    self.out = nn.Linear(self.bert.config.hidden_size, n_classes)
-    self.softmax = nn.Softmax(dim=1)
+    self.out = nn.Linear(self.bert.config.hidden_size,n_classes)
+    self.softmax = nn.Softmax(dim=1) #n_classes hapo juu instead of 1
+    #self.argmax = np.argmax()
+    #self.sigmoid = nn.Sigmoid()
 
   def forward(self, input_ids, attention_mask):
     _, pooled_output = self.bert(
       input_ids=input_ids,
       attention_mask=attention_mask,
+      #output_hidden_states=True,
       return_dict=False
     )
     #return_dict=False
     output = self.drop(pooled_output)
     output = self.out(output)
     return self.softmax(output)
+    #return self.out(output)
+    #return self.sigmoid(output)
 
 #instantiate custom model
-class_names = ['Hate','Normal']
+#device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model = HateSpeechClassifier(len(class_names))
 model = model.to(device)
 
-#testing on our tokens
+#testing the custom model on our tokens
 input_ids = data['input_ids'].to(device)
 attention_mask = data['attention_mask'].to(device)
 
 print(input_ids.shape)
 print(attention_mask.shape)
 
-#using model to predict as test before training
+#using custom model to predict as test before training
 model(input_ids, attention_mask)
 
-"""##training"""
+"""###Training"""
 
-EPOCHS = 2
+#defining optimizer as per the Bert paper suggested parameters
 optimizer = AdamW(model.parameters(), lr=2e-5, correct_bias=False)
 
 total_steps = len(train_data_loader) * EPOCHS
@@ -735,9 +693,13 @@ scheduler = get_linear_schedule_with_warmup(
     num_training_steps = total_steps
 )
 
+#defining type of loss function to track
 loss_fn = nn.CrossEntropyLoss().to(device)
+#loss_fn = nn.BCEWithLogitsLoss().to(device)
 
-#help func to training epoch
+#defining the helper func to training during each epoch which tracks loss and performs back propagation
+#to change weights/biases in order to reduce loss
+
 def train_epoch(
     model,
     data_loader,
@@ -757,6 +719,8 @@ def train_epoch(
     input_ids = d['input_ids'].to(device)
     attention_mask = d['attention_mask'].to(device)
     targets = d['targets'].to(device)
+    #targets = targets.unsqueeze(1)
+    #targets = targets.long()
 
     outputs = model(
         input_ids=input_ids,
@@ -777,7 +741,7 @@ def train_epoch(
 
   return correct_predictions.double() / n_examples, np.mean(losses)
 
-#eval current model
+#defining func for evaluation on the model
 
 def eval_model(model, data_loader, loss_fn,device,n_examples):
   model = model.eval()
@@ -791,10 +755,17 @@ def eval_model(model, data_loader, loss_fn,device,n_examples):
       input_ids = d['input_ids'].to(device)
       attention_mask = d['attention_mask'].to(device)
       targets = d['targets'].to(device)
+      #targets = targets.unsqueeze(1)
+      #targets = targets.type_as(output)
+
+      # outputs = model(
+      #     input_ids=input_ids,
+      #     attention_mask=attention_mask
 
       outputs = model(
           input_ids=input_ids,
           attention_mask=attention_mask
+
       )
 
       _, preds = torch.max(outputs, dim=1)
@@ -806,7 +777,7 @@ def eval_model(model, data_loader, loss_fn,device,n_examples):
   return correct_predictions.double() / n_examples, np.mean(losses)
 
 # Commented out IPython magic to ensure Python compatibility.
-# #hist dict to store loss and accuracy
+# #define a func for hist dictionary to store loss and accuracy
 # %%time
 # 
 # history = defaultdict(list)
@@ -848,64 +819,139 @@ def eval_model(model, data_loader, loss_fn,device,n_examples):
 #   history['val_loss'].append(val_loss)
 # 
 #   if val_acc > best_accuracy:
-#     torch.save(model, 'model.pth')
+#     torch.save(model.state_dict(), 'model.bin')
 #     best_accuracy = val_acc
 # 
 #
 
+#view the training over the epochs
+plt.plot(history['train_acc'], label='train accuracy')
+plt.plot(history['val_acc'], label='validation accuracy')
+plt.title('Training history')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend()
+plt.ylim([0, 1])
 
+#download the saved model
+#!gdown --id https://drive.google.com/uc?id=/content/model.bin
 
-""">mess on-wards"""
+#load the custom model
+# model = HateSpeechClassifier(len(class_names))
+# model.load_state_dict(torch.load('model.bin'))
+# model = model.to(device)
 
-#model
-#model = BertModel.from_pretrained("distilbert-base-uncased")
-model = BertModel.from_pretrained("Hate-speech-CNERG/dehatebert-mono-english")
-model = model.to(device)
+"""###Evaluation"""
 
-#model_ft = models.inception_v3(pretrained=True)
-#model.aux_logits=False
+#define func to get predictions and compare to real values in order to evaluate performance
+def get_predictions(model, data_loader):
+  model = model.eval()
 
-#fine tune with trainer
-from transformers import DistilBertForSequenceClassification, Trainer, TrainingArguments, DistilBertConfig
+  review_texts = []
+  predictions = []
+  prediction_probs = []
+  real_values = []
 
-def compute_metrics(pred):
-    labels = pred.label_ids
-    preds = pred.predictions.argmax(-1)
-    precision, recall, f1, _ = precision_recall_fscore_support(labels, preds, average='binary')
-    acc = accuracy_score(labels, preds)
-    return {
-        'accuracy': acc,
-        'f1': f1,
-        'precision': precision,
-        'recall': recall
+  with torch.no_grad():
+    for d in data_loader:
+
+      texts = d['review_text']
+      input_ids = d['input_ids'].to(device)
+      attention_mask = d['attention_mask'].to(device)
+      targets = d['targets'].to(device)
+
+      outputs = model(
+          input_ids=input_ids,
+          attention_mask=attention_mask
+      )
+
+      _, preds = torch.max(outputs, dim=1)
+
+      review_texts.extend(texts)
+      predictions.extend(preds)
+      prediction_probs.extend(outputs)
+      real_values.extend(targets)
+
+    predictions = torch.stack(predictions).cpu()
+    prediction_probs = torch.stack(prediction_probs).cpu()
+    real_values = torch.stack(real_values).cpu()
+
+    return review_texts, predictions, prediction_probs,real_values
+
+#obtain test accuracy and loss
+test_acc, test_loss = eval_model(model, test_data_loader, loss_fn,device,len(df_test))
+
+#best accuracy on test set
+test_acc
+
+#call helper func
+y_review_texts, y_pred,y_pred_probs,y_test = get_predictions(model, test_data_loader)
+
+#eval report
+print(classification_report(y_test,y_pred, target_names=class_names))
+
+#confusion matrix of model
+def show_confusion_matrix(confusion_matrix):
+  hmap = sns.heatmap(confusion_matrix, annot=True, fmt="d", cmap="Blues")
+  hmap.yaxis.set_ticklabels(hmap.yaxis.get_ticklabels(), rotation=0, ha='right')
+  hmap.xaxis.set_ticklabels(hmap.xaxis.get_ticklabels(), rotation=0, ha='right')
+  plt.ylabel('True Type of Speech')
+  plt.xlabel('Predicted Type of Speech');
+cm = confusion_matrix(y_test, y_pred)
+df_cm = pd.DataFrame(cm, index=class_names, columns=class_names)
+show_confusion_matrix(df_cm)
+
+#predict new tweet
+#give index
+idx = 2
+review_text = y_review_texts[idx]
+true_sentiment = y_test[idx]
+
+pred_df = pd.DataFrame(
+    {
+    "class_names": class_names,
+    "values": y_pred_probs[idx]
     }
-
-training_args = TrainingArguments(
-    output_dir='./results',          # output directory
-    num_train_epochs=3,              # total number of training epochs
-    per_device_train_batch_size=16,  # batch size per device during training
-    per_device_eval_batch_size=64,   # batch size for evaluation
-    warmup_steps=500,                # number of warmup steps for learning rate scheduler
-    weight_decay=0.01,               # strength of weight decay
-    logging_dir='./logs',            # directory for storing logs
-    logging_steps=10,
 )
 
-#config = BertConfig.from_pretrained(MODEL_NAME)
-#config = DistilBertConfig.from_pretrained("distilbert-base-uncased")
-#configuration = DistilBertConfig(vocab_size=128)
-model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
-#model.resize_token_embeddings(len(tokenizer))
+#use wrap module
+print("\n".join(wrap(review_text)))
+print()
+print(f'Type of Speech: {class_names[true_sentiment]}')
 
-trainer = Trainer(
-    model=model,                         # the instantiated 🤗 Transformers model to be trained
-    args=training_args,                  # training arguments, defined above
-    compute_metrics=compute_metrics,     # compute metrics, defined above
-    train_dataset=train_dataset,         # training dataset
-    eval_dataset=val_dataset             # evaluation dataset
+#plot preds
+sns.barplot(x="values", y="class_names", data=pred_df, orient="h")
+plt.ylabel("sentiment")
+plt.xlabel("probability")
+plt.xlim([0,1])
+
+"""###predict raw text"""
+
+#input txt as string
+review_text = "the country is going to the dogs because of you people"
+
+#encode txt
+encoded_review = tokenizer.encode_plus(
+    review_text,
+    max_length=MAX_LEN,
+    add_special_tokens=True,
+    return_token_type_ids=False,
+    padding="max_length",
+    return_attention_mask=True,
+    return_tensors='pt'
 )
 
-trainer.train()
+#move to device
+input_ids = encoded_review['input_ids'].to(device)
+attention_mask = encoded_review['attention_mask'].to(device)
+
+#run through model to get predictions
+output = model(input_ids,attention_mask)
+_, prediction = torch.max(output, dim=1)
+
+#print review text and class
+print(f'Tweet: {review_text}')
+print(f'Class of Speech: {class_names[prediction]}')
 
 """# Challenging the Solution
 
