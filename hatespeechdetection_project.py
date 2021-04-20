@@ -48,23 +48,13 @@ Please Change Runtime to GPU before running this notebook
 """
 
 #@title lib installation
-#installing transformers
-!pip install transformers==3.1.0
-
-#installing happytransformer
-!pip install happytransformer
-
-#tweet-preprocessor installation
-!pip install tweet-preprocessor
-
-#ekphrasis installation
-!pip install ekphrasis
-
-#emot installation
-!pip install emot
-
-#demoji installation
-!pip install demoji
+#installing libs
+!pip install transformers==3.1.0 --quiet
+!pip install happytransformer --quiet
+!pip install ekphrasis --quiet
+!pip install nlp --quiet
+!pip install optuna --quiet
+!pip install tqdm --quiet
 
 #Import libs
 import pandas as pd
@@ -325,12 +315,15 @@ ax = sns.boxplot(data=tweet_df, orient="v", palette="Set2")
 plt.title('Checking for outliers using boxplots')
 # The boxplots below indicate the outliers in each of the numerical columns
 
-# let us see how the labels are distributed in our dataset
-#plot countplot
-plt.figure(figsize=(10,5))
-sns.countplot(x="hate_speech", data = tweet_df)
-plt.title("Number of Hate Speech Posts")
+tweet_df.head(2)
 
+# let us see how the labels are distributed in our dataset
+#view data distribution for class imbalance
+class_names = ["Normal", "Hate"]
+ax = sns.countplot(x = tweet_df['hate_speech'])
+plt.xlabel('Speech Type')
+ax.set_xticklabels(class_names)
+plt.title('Distribution of Speech Type in Tweets')
 plt.show()
 
 # Most common words using hashtags
@@ -487,12 +480,6 @@ print(result[0].label)  # LABEL_1
 ###Transformer Libs
 """
 
-!pip install nlp
-
-!pip install optuna
-
-!pip install tqdm
-
 #import libs
 #import nlp
 import optuna
@@ -518,7 +505,6 @@ from tqdm import tqdm
 """> Try and add emojis to the tokenizer??:"""
 
 #add emojis to tokenizer
-from transformers import BertTokenizer
 
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
 s =" 😃 hello how are you"
@@ -551,9 +537,8 @@ tw.rename(columns={"hate_speech": "label","tweet": "text" }, inplace=True)
 #convert label column to int
 tw.label = tw.label.astype(int)
 
-class_names = ["Normal", "Hate"]
-
 #view data distribution for class imbalance
+class_names = ["Normal", "Hate"]
 ax = sns.countplot(x = tw['label'])
 plt.xlabel('Speech Type')
 ax.set_xticklabels(class_names)
@@ -953,6 +938,49 @@ plt.xlabel("probability")
 plt.xlim([0,1])
 
 """###predict raw text"""
+
+#create a classify/predict function
+#load the saved model(checkpoint)
+
+
+#function
+def predict(comment_text, model, tokenizer, label_names, threshold=0.5):
+  
+  comment_text = tokenizer.encode_plus(
+    review_text,
+    max_length=MAX_LEN,
+    add_special_tokens=True,
+    return_token_type_ids=False,
+    padding="max_length",
+    return_attention_mask=True,
+    return_tensors='pt'
+    
+    )
+  
+  input_ids = comment_text['input_ids'].to(device)
+  attention_mask = comment_text['attention_mask'].to(device)
+  
+  output = model(input_ids,attention_mask)
+  _, prediction = torch.max(output, dim=1) 
+
+  predicted_label = []
+
+  for i, label_name in enumerate(label_names):
+    label_probability = prediction[i]
+    if label_probability > threshold:
+      predicted_label.append(label_name)
+
+  return predicted_label
+
+#run function
+#input txt as string
+review_text = "the country is going to the dogs because of you people"
+
+#label column
+label = ['Normal', 'Hate']
+
+#call function
+predict(review_text, model, tokenizer, label)
 
 #input txt as string
 review_text = "the country is going to the dogs because of you people"
