@@ -74,12 +74,14 @@ import seaborn as sns
 import csv
 import re
 import preprocessor as tweet_proc
-import demoji
 from transformers import pipeline
 from happytransformer import HappyTextClassification
 from ekphrasis.classes.segmenter import Segmenter
 from emot.emo_unicode import UNICODE_EMO, EMOTICONS
 from sklearn.model_selection import train_test_split
+from wordcloud import WordCloud
+from nltk import FreqDist
+from pylab import rcParams
 
 """## Importing the Dataset
 
@@ -289,12 +291,23 @@ tweet_df.tail()
 
 """## Feature Engineering"""
 
-# use tweet-preprocessor to include some useful information
-# fields which can act as features for our classifiers
-# Include the hashtag text after segmenting into meaningful tokens using the ekphrasis segmenter for the twitter corpus
+# getting the hashtags inorder to view the mostly mentioned topics using a word cloud
+#cleaning the tags
+#remove quotation marks
+tweets_df['hashtags'] = tweets_df['hashtags'].str.replace("'", "")
 
-# save information such as URLs, name mentions, quantitative values and smileys
-# extract emojis and processed using emoji2vec to obtain a semantic vector representing the particular emoji
+#split using the 1st comma
+tweets_df[['first','second']] = tweets_df.hashtags.str.split(",", n=1,expand=True)
+
+#drop/remove special characters
+tweets_df['first'] = tweets_df['first'].astype(str)
+tweets_df['first'] = tweets_df['first'].str.replace('[', '')
+tweets_df['first'] = tweets_df['first'].str.replace(']', '')
+tweets_df['first'] = tweets_df['first'].str.replace('{', '')
+tweets_df['first'] = tweets_df['first'].str.replace('text: ', '')
+
+#using clean as tags
+tweets_df['hashtags'] = tweets_df['first']
 
 """# Exploratory Data Analysis"""
 
@@ -320,24 +333,9 @@ plt.title("Number of Hate Speech Posts")
 
 plt.show()
 
-# # extracting the number of examples of each class
-# hate = tweet_df[tweet_df['hate_speech'] == 1]
-# not_hate = tweet_df[tweet_df['hate_speech'] == 0]
-
-# # bar plot of the 3 classes
-# #plt.rcParams['figure.figsize'] = (7, 5)
-# plt.bar(hate, label="Hate Speech", color='red')
-# plt.bar(not_hate, label="Not Hate Speech", color='blue')
-# plt.legend()
-# plt.ylabel('Number of examples')
-# plt.title('Propertion of examples')
-# plt.show()
-
 # Most common words using hashtags
-from wordcloud import WordCloud
-from nltk import FreqDist
 #Frequency of words
-fdist = FreqDist(tweet_df['hashtags'])
+fdist = FreqDist(tweets_df['hashtags'])
 #WordCloud
 wc = WordCloud(width=800, height=400, max_words=50).generate_from_frequencies(fdist)
 plt.figure(figsize=(12,10))
@@ -362,15 +360,25 @@ classifier = pipeline("zero-shot-classification")
 
 #classifier = pipeline("zero-shot-classification", model='joeddav/xlm-roberta-large-xnli')
 
+#similarity index using spacy
+#context
+
+#example
+tweets_df.iloc[3,1]
+
 #multi-lingual
-sequence = "Wewe ni mavi ya kuku"
+sequence = "@David_Murathe_ Tribal chieftain you don't even represent the aspirations of majority kikuyu since it's under your crooked advise to the  that kikuyus were Rendered homeless,fed poisonous food and their businesses collapsed ...the kikuyu hate you"
 candidate_labels = ["violent", "offensive", "profane"]
 
-res = classifier(sequence, candidate_labels,multi_label=False)
+#res = classifier(sequence, candidate_labels,multi_label=False)
 
+res = classifier(sequence, candidate_labels,multi_label=True)
 print(res['labels'])
 print(res['scores'])
 
+#better for 1 class
+#test
+res = classifier(sequence, candidate_labels,multi_label=False)
 print(res['labels'])
 print(res['scores'])
 
@@ -389,6 +397,25 @@ classifier(sequence, candidate_labels,multi_label=True)
 #                           "We hope you don't hate it."])
 # for result in results:
 #   print(f"label: {result['label']}, with score: {round(result['score'], 4)}")
+
+"""> facebook version:"""
+
+classifier = pipeline("zero-shot-classification",model="facebook/bart-large-mnli")
+
+#using multi-label = false
+sequence_to_classify = "siku moja ntaona dunia"
+
+candidate_labels = ['travel', 'cooking', 'dancing']
+
+result =  classifier(sequence_to_classify, candidate_labels)
+
+#fix the params of fig
+rcParams['figure.figsize'] = 10,5
+
+#plot the ouput as a barplot
+plt.barh(result['labels'], result['scores'])
+plt.xticks(list(np.arange(0,1,0.1)))
+plt.show()
 
 """## Semi-Supervised Hate Speech Detection
 
