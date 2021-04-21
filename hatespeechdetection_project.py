@@ -63,11 +63,11 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import csv
 import re
-import preprocessor as tweet_proc
+#import preprocessor as tweet_proc
 from transformers import pipeline
 from happytransformer import HappyTextClassification
 from ekphrasis.classes.segmenter import Segmenter
-from emot.emo_unicode import UNICODE_EMO, EMOTICONS
+#from emot.emo_unicode import UNICODE_EMO, EMOTICONS
 from sklearn.model_selection import train_test_split
 from wordcloud import WordCloud
 from nltk import FreqDist
@@ -289,6 +289,7 @@ tweets_df['hashtags'] = tweets_df['hashtags'].str.replace("'", "")
 #split using the 1st comma
 tweets_df[['first','second']] = tweets_df.hashtags.str.split(",", n=1,expand=True)
 
+
 #drop/remove special characters
 tweets_df['first'] = tweets_df['first'].astype(str)
 tweets_df['first'] = tweets_df['first'].str.replace('[', '')
@@ -314,8 +315,6 @@ plt.figure(figsize = (20,10))
 ax = sns.boxplot(data=tweet_df, orient="v", palette="Set2")
 plt.title('Checking for outliers using boxplots')
 # The boxplots below indicate the outliers in each of the numerical columns
-
-tweet_df.head(2)
 
 # let us see how the labels are distributed in our dataset
 #view data distribution for class imbalance
@@ -347,6 +346,9 @@ plt.show()
 classifier = pipeline("zero-shot-classification")
 # classifier = pipeline("zero-shot-classification", device=0) # to utilize GPU
 
+#zero-shot classification using mobile bert
+#classifier = pipeline("zero-shot-classification", model="typeform/mobilebert-uncased-mnli")
+
 # Zero-shot classification in 100 languages
 # A pipeline for languages other than English,
 # a trained cross-lingual model on top of XLM RoBERTa:
@@ -371,6 +373,10 @@ print(res['scores'])
 
 #better for 1 class
 #test
+res = classifier(sequence, candidate_labels,multi_label=False)
+print(res['labels'])
+print(res['scores'])
+
 res = classifier(sequence, candidate_labels,multi_label=False)
 print(res['labels'])
 print(res['scores'])
@@ -517,7 +523,7 @@ print(tokenizer.tokenize(s))
 tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 model = BertModel.from_pretrained('bert-base-uncased')
 
-num_added_toks = tokenizer.add_tokens(["😃" ,"😡","🤬", "🖕","💯"])
+num_added_toks = tokenizer.add_tokens(["😃","😁","😆","😡","🤬", "🖕","💯","💩","🤢","🤮"])
 print('We have added', num_added_toks, 'tokens')
  # Notice: resize_token_embeddings expect to receive the full size of the new vocabulary, i.e., the length of the tokenizer.
 model.resize_token_embeddings(len(tokenizer))
@@ -548,7 +554,11 @@ plt.show()
 
 #load tokenizer for the relevant model that will be used
 #tokenizer = DistilBertTokenizerFast.from_pretrained('distilbert-base-uncased')
-tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased') 
+
+#increase vocab
+num_added_toks = tokenizer.add_tokens(["😃","😁","😆","😡","🤬", "🖕","💯","💩","🤢","🤮"])
+print('We have added', num_added_toks, 'tokens')
 
 #choose sequence length (number of words to encode max)
 token_lens = []
@@ -596,8 +606,8 @@ class KenyaHateSpeechDataset(Dataset):
 
 # define/set the constants that will be used during modeling
 MAX_LEN = 140
-BATCH_SIZE=16
-EPOCHS = 5
+BATCH_SIZE=32
+EPOCHS = 2
 
 #split data to train, test and validation
 RANDOM_SEED = 101
@@ -640,7 +650,11 @@ print(data['targets'].shape)
 
 #base uncased version was chosen to save on computational cost 
 PRE_TRAINED_MODEL_NAME = 'bert-base-uncased'
-bert_model = BertModel.from_pretrained(PRE_TRAINED_MODEL_NAME,return_dict=False)
+#bert_model = BertModel.from_pretrained(PRE_TRAINED_MODEL_NAME,return_dict=False)
+
+#since emojis were added and thus the vocab was expanded/increased the model also needs to be updated
+#resize_token_embeddings expect to receive the full size of the new vocabulary, i.e., the length of the tokenizer.
+#bert_model.resize_token_embeddings(len(tokenizer))
 
 """###Building Classifier"""
 
@@ -655,27 +669,22 @@ class HateSpeechClassifier(nn.Module):
   def __init__(self, n_classes=2):
     super(HateSpeechClassifier, self).__init__()
     self.bert = BertModel.from_pretrained(PRE_TRAINED_MODEL_NAME,return_dict=False)
-    #config = DistilBertConfig.from_pretrained( PRE_TRAINED_MODEL_NAME, output_hidden_states=True)    
-    #self.bert = DistilBertModel.from_pretrained(PRE_TRAINED_MODEL_NAME)
+    self.bert.resize_token_embeddings(len(tokenizer))
     self.drop = nn.Dropout(p=0.3)
     self.out = nn.Linear(self.bert.config.hidden_size,n_classes)
-    self.softmax = nn.Softmax(dim=1) #n_classes hapo juu instead of 1
-    #self.argmax = np.argmax()
-    #self.sigmoid = nn.Sigmoid()
+    self.softmax = nn.Softmax(dim=1)
+   
 
   def forward(self, input_ids, attention_mask):
     _, pooled_output = self.bert(
       input_ids=input_ids,
       attention_mask=attention_mask,
-      #output_hidden_states=True,
       return_dict=False
     )
-    #return_dict=False
+    
     output = self.drop(pooled_output)
     output = self.out(output)
     return self.softmax(output)
-    #return self.out(output)
-    #return self.sigmoid(output)
 
 #instantiate custom model
 #device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -767,13 +776,7 @@ def eval_model(model, data_loader, loss_fn,device,n_examples):
       input_ids = d['input_ids'].to(device)
       attention_mask = d['attention_mask'].to(device)
       targets = d['targets'].to(device)
-      #targets = targets.unsqueeze(1)
-      #targets = targets.type_as(output)
-
-      # outputs = model(
-      #     input_ids=input_ids,
-      #     attention_mask=attention_mask
-
+      
       outputs = model(
           input_ids=input_ids,
           attention_mask=attention_mask
@@ -937,7 +940,10 @@ plt.ylabel("sentiment")
 plt.xlabel("probability")
 plt.xlim([0,1])
 
-"""###predict raw text"""
+"""###predict raw text
+
+> predict function:
+"""
 
 #create a classify/predict function
 #load the saved model(checkpoint)
@@ -946,8 +952,8 @@ plt.xlim([0,1])
 #function
 def predict(comment_text, model, tokenizer, label_names, threshold=0.5):
   
-  comment_text = tokenizer.encode_plus(
-    review_text,
+  encoding = tokenizer.encode_plus(
+    comment_text,
     max_length=MAX_LEN,
     add_special_tokens=True,
     return_token_type_ids=False,
@@ -956,25 +962,23 @@ def predict(comment_text, model, tokenizer, label_names, threshold=0.5):
     return_tensors='pt'
     
     )
-  
-  input_ids = comment_text['input_ids'].to(device)
-  attention_mask = comment_text['attention_mask'].to(device)
+  #torch.device("cuda" if torch.cuda.is_available() else "cpu")
+  input_ids = encoding['input_ids'].to(device)
+  attention_mask = encoding['attention_mask'].to(device)
   
   output = model(input_ids,attention_mask)
   _, prediction = torch.max(output, dim=1) 
+  
+  return label[prediction]
 
-  predicted_label = []
-
-  for i, label_name in enumerate(label_names):
-    label_probability = prediction[i]
-    if label_probability > threshold:
-      predicted_label.append(label_name)
-
-  return predicted_label
+  sns.barplot(x="values", y="class_names", data=prediction, orient="h")
+  plt.ylabel("sentiment")
+  plt.xlabel("probability")
+  plt.xlim([0,1])
 
 #run function
 #input txt as string
-review_text = "the country is going to the dogs because of you people"
+review_text = "How's the going."
 
 #label column
 label = ['Normal', 'Hate']
@@ -982,8 +986,10 @@ label = ['Normal', 'Hate']
 #call function
 predict(review_text, model, tokenizer, label)
 
+"""> step by step procedure without using function:"""
+
 #input txt as string
-review_text = "the country is going to the dogs because of you people"
+review_text = "How's the going."
 
 #encode txt
 encoded_review = tokenizer.encode_plus(
