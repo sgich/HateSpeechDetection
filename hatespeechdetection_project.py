@@ -971,14 +971,9 @@ def predict(comment_text, model, tokenizer, label_names, threshold=0.5):
   
   return label[prediction]
 
-  sns.barplot(x="values", y="class_names", data=prediction, orient="h")
-  plt.ylabel("sentiment")
-  plt.xlabel("probability")
-  plt.xlim([0,1])
-
 #run function
 #input txt as string
-review_text = "How's the going."
+review_text = "How's the day."
 
 #label column
 label = ['Normal', 'Hate']
@@ -1013,6 +1008,48 @@ _, prediction = torch.max(output, dim=1)
 #print review text and class
 print(f'Tweet: {review_text}')
 print(f'Class of Speech: {class_names[prediction]}')
+
+"""#Full Workflow"""
+
+#first a tweet is loaded/pasted and classified (supervised) as hate or normal
+#input txt as string
+review_text = "How's the day."
+
+#label column
+label = ['Normal', 'Hate']
+
+#call function
+supervised_class = predict(review_text, model, tokenizer, label)
+
+#then if it's hate the unsupervised classification(zero-shot comes into play, otherwise nothing is printed)
+
+if supervised_class == 'Hate':
+
+  #classifier = pipeline("zero-shot-classification")
+
+    #using multi-label = false (default)
+  candidate_labels = ["violent", "offensive", "profane"]
+
+  result =  classifier(review_text, candidate_labels)
+
+    #print review text and class
+  print(f'Tweet: {review_text}')
+  print(f'Class of Speech: {supervised_class}')
+
+  #fix the params of fig
+  rcParams['figure.figsize'] = 10,5
+
+    #plot the ouput as a barplot
+  plt.barh(result['labels'], result['scores'])
+  plt.xticks(list(np.arange(0,1,0.1)))
+  plt.xlabel("Confidence Level")
+  plt.ylabel("Sub-Clusters")
+  plt.title('Hate Speech Sub-Clusters')
+  plt.show()
+
+else:
+  print(f'Tweet: {review_text}')
+  print(f'Class of Speech: {supervised_class}')
 
 """# Challenging the Solution
 
