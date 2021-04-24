@@ -86,7 +86,7 @@ if tw != '':
 
         zero_model = 'typeform/mobilebert-uncased-mnli'
 
-        classifier = pipeline("zero-shot-classification", model=zero_model)
+        classifier = pipeline("zero-shot-classification", model=zero_model, truncation=True)
 
         text = tw
         candidate_labels = ['Violent', 'Offensive', 'Profane']
