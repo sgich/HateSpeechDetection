@@ -1,6 +1,6 @@
 import pandas as pd
 import streamlit as st
-from config
+import config
 from hate_speech_model
 import torch
 import altair as alt
