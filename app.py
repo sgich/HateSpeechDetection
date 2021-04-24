@@ -8,6 +8,8 @@ import altair as alt
 
 from transformers import pipeline
 from hate_speech_model import HateSpeechClassifier
+import os
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 # Set page title
 st.title('Twitter Hate Speech Detection')
