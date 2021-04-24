@@ -2,4 +2,4 @@
 streamlit
 torch
 torchvision
-transformers @ git+git://github.com/huggingface/transformers@59b5953d89544a66d73
+transformers
