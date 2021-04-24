@@ -1,10 +1,10 @@
 import pandas as pd
 import streamlit as st
-import config
+from config
+from hate_speech_model
 import torch
 import altair as alt
-import tweepy
-import tweetpy_creds
+
 
 from transformers import pipeline
 from hate_speech_model import HateSpeechClassifier
