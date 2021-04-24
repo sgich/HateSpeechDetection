@@ -3,4 +3,4 @@ streamlit
 torch
 torchvision
 transformers
-tornado==6.1
+tornado
