@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 import config
-from hate_speech_model
+import hate_speech_model
 import torch
 import altair as alt
 
@@ -14,7 +14,7 @@ st.title('Twitter Hate Speech Detection')
 
 # Load classification model
 with st.spinner('Loading classification model...'):
-    model = HateSpeechClassifier()
+    model = hate_speech_model.HateSpeechClassifier()
     model.load_state_dict(torch.load(config.MODEL_PATH, map_location=torch.device('cpu')))
 
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
