@@ -1,4 +1,4 @@
-streamlit>0.66
+streamlit
 transformers==3.1.0
 
 
