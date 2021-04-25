@@ -57,7 +57,7 @@ scikit-learn==0.24.1
 scipy==1.6.2
 sentencepiece==0.1.95
 sklearn==0.0
-streamlit==0.80.0
+streamlit>0.66
 terminado==0.9.4
 tokenizers==0.10.2
 toml==0.10.2
