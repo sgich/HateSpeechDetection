@@ -13,7 +13,6 @@ class HateSpeechClassifier(nn.Module):
         self.drop = nn.Dropout(p=0.3)
         self.out = nn.Linear(768, 1)
 
-    @st.cache(max_entries=10, ttl=3600)
     def forward(self, input_ids, attention_mask):
         _, pooled_output = self.bert(
             input_ids=input_ids,
