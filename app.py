@@ -34,7 +34,8 @@ def sentence_prediction(tw, model):
         add_special_tokens=True,
         max_length=max_len,
         return_token_type_ids=False,
-        truncation=True
+        truncation=True,
+        padding="max_length"
 
     )
     class_names = ['Normal Speech','Hate Speech']
