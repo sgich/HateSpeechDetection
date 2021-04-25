@@ -71,6 +71,6 @@ wrapt==1.12.1
 zipp==3.4.1
 
 --find-links https://download.pytorch.org/whl/torch_stable.html
-torch==1.5.0
+torch==1.8.1
 
 
