@@ -1,7 +1,6 @@
 -f https://download.pytorch.org/whl/torch_stable.html
 streamlit
-torch
+torch==1.8.1
 torchvision
-transformers
-tornado
-pip
+transformers==4.5.1
+
