@@ -3,6 +3,5 @@ streamlit>0.66
 torch==1.8.1
 torchvision
 transformers==4.5.1
-opencv-python-headless
-libncurses5
+
 
