@@ -87,7 +87,7 @@ if tw != '':
 
         zero_model = 'typeform/mobilebert-uncased-mnli'
 
-        classifier = pipeline("zero-shot-classification", model=zero_model)
+        classifier = pipeline("zero-shot-classification", model=zero_model,tokenizer=config.TOKENIZER)
 
         text = tw
         candidate_labels = ['Violent', 'Offensive', 'Profane']
@@ -163,10 +163,10 @@ if uploaded_file is not None:
       max_len = 140
 
       if sentiment == "Hate Speech":
-          tokenizer = AutoTokenizer.from_pretrained('typeform/mobilebert-uncased-mnli')
+          #tokenizer = AutoTokenizer.from_pretrained('typeform/mobilebert-uncased-mnli')
           zero_model = 'typeform/mobilebert-uncased-mnli'
 
-          classifier = pipeline("zero-shot-classification", model=zero_model, tokenizer=tokenizer)
+          classifier = pipeline("zero-shot-classification", model=zero_model,tokenizer=config.TOKENIZER)
 
           text = tweet
           candidate_labels = ['Violent', 'Offensive', 'Profane']
