@@ -2,12 +2,10 @@ import pandas as pd
 import streamlit as st
 import config
 import torch
-import altair as alt
 
 
 from transformers import pipeline
 from hate_speech_model import HateSpeechClassifier
-from transformers import AutoTokenizer
 
 
 # Set page title
