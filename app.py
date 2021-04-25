@@ -4,8 +4,14 @@ import config
 import torch
 
 
+
 from transformers import pipeline
 from hate_speech_model import HateSpeechClassifier
+
+import subprocess
+cmd = ['python3','-m ','pip','install','--upgrade','pip']
+subprocess.run(cmd)
+print('Working')
 
 
 # Set page title
@@ -20,7 +26,7 @@ with st.spinner('Loading classification model...'):
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     device = torch.device("cpu")
 
-@st.cache
+@st.cache(allow_output_mutation=True)
 def sentence_prediction(tw, model):
     tokenizer = config.TOKENIZER
     max_len = 140
