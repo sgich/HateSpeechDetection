@@ -8,6 +8,7 @@ import altair as alt
 
 from transformers import pipeline
 from hate_speech_model import HateSpeechClassifier
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -85,6 +86,8 @@ if tw != '':
 
     if sentence == "Hate Speech":
 
+        nli_model = AutoModelForSequenceClassification.from_pretrained('typeform/mobilebert-uncased-mnli')
+        tokenizer = AutoTokenizer.from_pretrained('typeform/mobilebert-uncased-mnli')
         zero_model = 'typeform/mobilebert-uncased-mnli'
 
         classifier = pipeline("zero-shot-classification", model=zero_model)
