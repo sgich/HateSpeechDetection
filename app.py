@@ -22,7 +22,7 @@ with st.spinner('Loading classification model...'):
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     device = torch.device("cpu")
 
-
+@st.cache
 def sentence_prediction(tw, model):
     tokenizer = config.TOKENIZER
     max_len = 140
