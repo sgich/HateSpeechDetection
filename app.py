@@ -84,7 +84,6 @@ if tw != '':
 
     if sentence == "Hate Speech":
 
-        tokenizer = AutoTokenizer.from_pretrained('typeform/mobilebert-uncased-mnli',truncation=True)
         zero_model = 'typeform/mobilebert-uncased-mnli'
 
         classifier = pipeline("zero-shot-classification", model=zero_model)
