@@ -1,5 +1,6 @@
 streamlit
-transformers==3.1.0
+transformers
+tokenizers==0.10.2
 
 
 --find-links https://download.pytorch.org/whl/torch_stable.html
