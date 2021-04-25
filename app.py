@@ -1,23 +1,22 @@
 import pandas as pd
 import streamlit as st
 import config
-import hate_speech_model
 import torch
 import altair as alt
 
 
 from transformers import pipeline
 from hate_speech_model import HateSpeechClassifier
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
-import os
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
+from transformers import AutoTokenizer
+
 
 # Set page title
 st.title('Twitter Hate Speech Detection')
 
+#@st.cache
 # Load classification model
 with st.spinner('Loading classification model...'):
-    model = hate_speech_model.HateSpeechClassifier()
+    model = HateSpeechClassifier()
     model.load_state_dict(torch.load(config.MODEL_PATH, map_location=torch.device('cpu')))
 
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -81,13 +80,11 @@ if tw != '':
     sentence = sentence_prediction(tw, model)
 
     # Show prediction
-    with st.spinner('Predicting...'):
-        sentence
+    #with st.spinner('Predicting...'):
+        #sentence
 
     if sentence == "Hate Speech":
 
-        nli_model = AutoModelForSequenceClassification.from_pretrained('typeform/mobilebert-uncased-mnli')
-        tokenizer = AutoTokenizer.from_pretrained('typeform/mobilebert-uncased-mnli')
         zero_model = 'typeform/mobilebert-uncased-mnli'
 
         classifier = pipeline("zero-shot-classification", model=zero_model)
@@ -98,19 +95,41 @@ if tw != '':
 
         data = pd.DataFrame({'Hate Sub-clusters': result['labels'], 'Confidence Level': result['scores']})
 
-        st.write(alt.Chart(data).mark_bar().encode(
-            x='Confidence Level',
-            y=alt.X('Hate Sub-clusters', sort=None),
-            color='Hate Sub-clusters'
+        clus = data[data['Confidence Level'] == data['Confidence Level'].max()]
 
-        ).configure_axis(
-            grid=False
-        ).properties(
-            width=500,
-            height=150
-        )
-        )
-        st.write(data)
+        clus_p = clus['Hate Sub-clusters'].values
+        clus_pp = clus_p[0]
+        clus_c = clus['Confidence Level'].values
+        clus_cc = round(clus_c[0], 2)
+
+
+
+        #print('hate sub-cluster: ', clus_pp ,' with a Confidence Level of ', clus_cc)
+
+            #f"{'hate sub-cluster': clus_pp,'Confidence Level': clus_cc}"
+
+        with st.spinner('Predicting...'):
+            st.write(sentence)
+            st.write('hate sub-cluster: ', clus_pp , ' with a Confidence Level of ', clus_cc)
+
+    else:
+        with st.spinner('Predicting...'):
+            sentence
+
+        #st.write(alt.Chart(data).mark_bar().encode(
+           # x='Confidence Level',
+          #  y=alt.X('Hate Sub-clusters', sort=None),
+         #   color='Hate Sub-clusters'
+
+        #).configure_axis(
+        #    grid=False
+        #).properties(
+        #    width=500,
+        #    height=150
+        #)
+       # )
+       # st.write(out)
+
 
 ### TWEET SEARCH AND CLASSIFY ###
 st.subheader('Offline Batch tweet classification')
@@ -141,10 +160,13 @@ if uploaded_file is not None:
       # classifier.predict(sentence)
       sentiment = sentence
 
+      max_len = 140
+
       if sentiment == "Hate Speech":
+          tokenizer = AutoTokenizer.from_pretrained('typeform/mobilebert-uncased-mnli')
           zero_model = 'typeform/mobilebert-uncased-mnli'
 
-          classifier = pipeline("zero-shot-classification", model=zero_model)
+          classifier = pipeline("zero-shot-classification", model=zero_model, tokenizer=tokenizer)
 
           text = tweet
           candidate_labels = ['Violent', 'Offensive', 'Profane']
