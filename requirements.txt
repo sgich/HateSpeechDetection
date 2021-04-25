@@ -45,7 +45,6 @@ prometheus-client==0.10.1
 protobuf==3.15.8
 pycparser==2.20
 pydeck==0.6.2
-pytorch==1.5.0
 Pygments==2.8.1
 pyparsing==2.4.7
 pyrsistent==0.17.3
@@ -62,7 +61,6 @@ streamlit>0.66
 terminado==0.9.4
 tokenizers==0.10.2
 toml==0.10.2
-torch==1.8.1
 tornado==6.1
 transformers
 tzlocal==2.1
@@ -71,5 +69,8 @@ validators==0.18.2
 webencodings==0.5.1
 wrapt==1.12.1
 zipp==3.4.1
+
+--find-links https://download.pytorch.org/whl/torch_stable.html
+torch==1.5.0+cpu
 
 
