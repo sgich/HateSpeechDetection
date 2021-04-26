@@ -24,8 +24,8 @@ model = HateSpeechClassifier()
 model.load_state_dict(torch.load(config.MODEL_PATH, map_location=torch.device('cpu')))
 
 #define the zero_shot model
-zero_model = 'typeform/mobilebert-uncased-mnli'
-classifier = pipeline("zero-shot-classification", model=zero_model, tokenizer=config.TOKENIZER)
+#zero_model = 'typeform/mobilebert-uncased-mnli'
+#classifier = pipeline("zero-shot-classification", model=zero_model, tokenizer=config.TOKENIZER)
 
 #@st.cache
 # Load classification model
@@ -90,56 +90,56 @@ if tw != '':
     sentence = sentence_prediction(tw, model)
 
     # Show prediction
-    #with st.spinner('Predicting...'):
-        #sentence
-
-    if sentence == "Hate Speech":
-
-        #zero_model = 'typeform/mobilebert-uncased-mnli'
-
-        #classifier = pipeline("zero-shot-classification", model=zero_model,tokenizer=config.TOKENIZER)
-
-        text = tw
-        candidate_labels = ['Violent', 'Offensive', 'Profane']
-        result = classifier(text, candidate_labels)
-
-        data = pd.DataFrame({'Hate Sub-clusters': result['labels'], 'Confidence Level': result['scores']})
-
-        clus = data[data['Confidence Level'] == data['Confidence Level'].max()]
-
-        clus_p = clus['Hate Sub-clusters'].values
-        clus_pp = clus_p[0]
-        clus_c = clus['Confidence Level'].values
-        clus_cc = round(clus_c[0], 2)
-
-
-
-        #print('hate sub-cluster: ', clus_pp ,' with a Confidence Level of ', clus_cc)
-
-            #f"{'hate sub-cluster': clus_pp,'Confidence Level': clus_cc}"
-
-        with st.spinner('Predicting...'):
-            st.write(sentence)
-            st.write('hate sub-cluster: ', clus_pp , ' with a Confidence Level of ', clus_cc)
-
-    else:
-        with st.spinner('Predicting...'):
-            sentence
-
-        #st.write(alt.Chart(data).mark_bar().encode(
-           # x='Confidence Level',
-          #  y=alt.X('Hate Sub-clusters', sort=None),
-         #   color='Hate Sub-clusters'
-
-        #).configure_axis(
-        #    grid=False
-        #).properties(
-        #    width=500,
-        #    height=150
-        #)
-       # )
-       # st.write(out)
-
+    with st.spinner('Predicting...'):
+        sentence
+    #
+    # if sentence == "Hate Speech":
+    #
+    #     #zero_model = 'typeform/mobilebert-uncased-mnli'
+    #
+    #     #classifier = pipeline("zero-shot-classification", model=zero_model,tokenizer=config.TOKENIZER)
+    #
+    #     text = tw
+    #     candidate_labels = ['Violent', 'Offensive', 'Profane']
+    #     result = classifier(text, candidate_labels)
+    #
+    #     data = pd.DataFrame({'Hate Sub-clusters': result['labels'], 'Confidence Level': result['scores']})
+    #
+    #     clus = data[data['Confidence Level'] == data['Confidence Level'].max()]
+    #
+    #     clus_p = clus['Hate Sub-clusters'].values
+    #     clus_pp = clus_p[0]
+    #     clus_c = clus['Confidence Level'].values
+    #     clus_cc = round(clus_c[0], 2)
+    #
+    #
+    #
+    #     #print('hate sub-cluster: ', clus_pp ,' with a Confidence Level of ', clus_cc)
+    #
+    #         #f"{'hate sub-cluster': clus_pp,'Confidence Level': clus_cc}"
+    #
+    #     with st.spinner('Predicting...'):
+    #         st.write(sentence)
+    #         st.write('hate sub-cluster: ', clus_pp , ' with a Confidence Level of ', clus_cc)
+    #
+    # else:
+    #     with st.spinner('Predicting...'):
+    #         sentence
+    #
+    #     #st.write(alt.Chart(data).mark_bar().encode(
+    #        # x='Confidence Level',
+    #       #  y=alt.X('Hate Sub-clusters', sort=None),
+    #      #   color='Hate Sub-clusters'
+    #
+    #     #).configure_axis(
+    #     #    grid=False
+    #     #).properties(
+    #     #    width=500,
+    #     #    height=150
+    #     #)
+    #    # )
+    #    # st.write(out)
+    #
 
 ### TWEET SEARCH AND CLASSIFY ###
 st.subheader('Offline Batch tweet classification')
@@ -172,43 +172,52 @@ if uploaded_file is not None:
 
       max_len = 140
 
-      if sentiment == "Hate Speech":
-          #tokenizer = AutoTokenizer.from_pretrained('typeform/mobilebert-uncased-mnli')
-          #zero_model = 'typeform/mobilebert-uncased-mnli'
+      non = ''
+      tweet_data = tweet_data.append(
+          {'tweet': tweet, 'predicted-sentiment': sentiment, 'hate sub-cluster': non, 'confidence level': non},
+          ignore_index=True)
+      tweet_data = tweet_data.reindex(
+          columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level'])
 
-          #classifier = pipeline("zero-shot-classification", model=zero_model,tokenizer=config.TOKENIZER)
+#       if sentiment == "Hate Speech":
+#           #tokenizer = AutoTokenizer.from_pretrained('typeform/mobilebert-uncased-mnli')
+#           #zero_model = 'typeform/mobilebert-uncased-mnli'
+#
+#           #classifier = pipeline("zero-shot-classification", model=zero_model,tokenizer=config.TOKENIZER)
+#
+#           text = tweet
+#           candidate_labels = ['Violent', 'Offensive', 'Profane']
+#           result = classifier(text, candidate_labels)
+#
+#           data = pd.DataFrame({'Hate Sub-clusters': result['labels'], 'Confidence Level': result['scores']})
+#
+#           clus = data[data['Confidence Level'] == data['Confidence Level'].max()]
+#
+#           clus_p = clus['Hate Sub-clusters'].values
+#           clus_pp = clus_p[0]
+#           clus_c = clus['Confidence Level'].values
+#           clus_cc = round(clus_c[0], 2)
+#
+#           tweet_data = tweet_data.append({'tweet': tweet, 'predicted-sentiment': sentiment, 'hate sub-cluster': clus_pp,
+#                                           'confidence level': clus_cc}, ignore_index=True)
+#           tweet_data = tweet_data.reindex(
+#               columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level'])
+#
+#       else:
+#
+#           non = ''
+#           tweet_data = tweet_data.append(
+#               {'tweet': tweet, 'predicted-sentiment': sentiment, 'hate sub-cluster': non, 'confidence level': non},
+#               ignore_index=True)
+#           tweet_data = tweet_data.reindex(
+#               columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level'])
+#
+# # As long as the query is valid (not empty or equal to '#')...
+#
+# #if query != '' and query != '#':
+# #    with st.spinner(f'Searching for and analyzing {query}...'):
+#
 
-          text = tweet
-          candidate_labels = ['Violent', 'Offensive', 'Profane']
-          result = classifier(text, candidate_labels)
-
-          data = pd.DataFrame({'Hate Sub-clusters': result['labels'], 'Confidence Level': result['scores']})
-
-          clus = data[data['Confidence Level'] == data['Confidence Level'].max()]
-
-          clus_p = clus['Hate Sub-clusters'].values
-          clus_pp = clus_p[0]
-          clus_c = clus['Confidence Level'].values
-          clus_cc = round(clus_c[0], 2)
-
-          tweet_data = tweet_data.append({'tweet': tweet, 'predicted-sentiment': sentiment, 'hate sub-cluster': clus_pp,
-                                          'confidence level': clus_cc}, ignore_index=True)
-          tweet_data = tweet_data.reindex(
-              columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level'])
-
-      else:
-
-          non = ''
-          tweet_data = tweet_data.append(
-              {'tweet': tweet, 'predicted-sentiment': sentiment, 'hate sub-cluster': non, 'confidence level': non},
-              ignore_index=True)
-          tweet_data = tweet_data.reindex(
-              columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level'])
-
-# As long as the query is valid (not empty or equal to '#')...
-
-#if query != '' and query != '#':
-#    with st.spinner(f'Searching for and analyzing {query}...'):
 
 
 # Show query data and sentiment if available
