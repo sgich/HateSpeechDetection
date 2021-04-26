@@ -8,73 +8,79 @@ import torch
 from transformers import pipeline
 from hate_speech_model import HateSpeechClassifier
 
-import subprocess
-cmd = ['python3','-m ','pip','install','--upgrade','pip']
-subprocess.run(cmd)
-print('Working')
+#import subprocess
+#cmd = ['python3','-m ','pip','install','--upgrade','pip']
+#subprocess.run(cmd)
+#print('Working')
 
 
 # Set page title
 st.title('Twitter Hate Speech Detection')
 
+device = torch.device("cpu")
+
+#define supervised model
+model = HateSpeechClassifier()
+model.load_state_dict(torch.load(config.MODEL_PATH, map_location=torch.device('cpu')))
+
+#define the zero_shot model
+zero_model = 'typeform/mobilebert-uncased-mnli'
+classifier = pipeline("zero-shot-classification", model=zero_model, tokenizer=config.TOKENIZER)
+
 #@st.cache
 # Load classification model
 with st.spinner('Loading classification model...'):
-    model = HateSpeechClassifier()
-    model.load_state_dict(torch.load(config.MODEL_PATH, map_location=torch.device('cpu')))
 
-    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    device = torch.device("cpu")
+    @st.cache(allow_output_mutation=True)
+    def sentence_prediction(tw, model):
+        tokenizer = config.TOKENIZER
+        max_len = 140
+        review = str(tw)
 
-@st.cache(allow_output_mutation=True)
-def sentence_prediction(tw, model):
-    tokenizer = config.TOKENIZER
-    max_len = 140
-    review = str(tw)
+        inputs = tokenizer.encode_plus(
+            review,
+            None,
+            add_special_tokens=True,
+            max_length=max_len,
+            return_token_type_ids=False,
+            truncation=True,
+            padding="max_length"
 
-    inputs = tokenizer.encode_plus(
-        review,
-        None,
-        add_special_tokens=True,
-        max_length=max_len,
-        return_token_type_ids=False,
-        truncation=True,
-        padding="max_length"
+        )
+        class_names = ['Normal Speech','Hate Speech']
 
-    )
-    class_names = ['Normal Speech','Hate Speech']
+        input_ids = inputs['input_ids']
+        mask = inputs['attention_mask']
 
-    input_ids = inputs['input_ids']
-    mask = inputs['attention_mask']
+        padding_length = max_len - len(input_ids)
+        input_ids = input_ids + ([0] * padding_length)
+        mask = mask + ([0] * padding_length)
 
-    padding_length = max_len - len(input_ids)
-    input_ids = input_ids + ([0] * padding_length)
-    mask = mask + ([0] * padding_length)
+        input_ids = torch.tensor(input_ids, dtype=torch.int).unsqueeze(0)
+        attention_mask = torch.tensor(mask, dtype=torch.int).unsqueeze(0)
 
-    input_ids = torch.tensor(input_ids, dtype=torch.long).unsqueeze(0)
-    attention_mask = torch.tensor(mask, dtype=torch.long).unsqueeze(0)
+        input_ids = input_ids.to(device, dtype=torch.int)
+        attention_mask = attention_mask.to(device, dtype=torch.int)
 
-    input_ids = input_ids.to(device, dtype=torch.long)
-    attention_mask = attention_mask.to(device, dtype=torch.long)
+        outputs = model(input_ids=input_ids,
+                        attention_mask=attention_mask
+                        )
 
-    outputs = model(input_ids=input_ids,
-                    attention_mask=attention_mask
-                    )
+        outputs = torch.sigmoid(outputs).cpu().detach().numpy()
+        out = outputs[0][0]
 
-    outputs = torch.sigmoid(outputs).cpu().detach().numpy()
-    out = outputs[0][0]
+        hate_prediction = float(out)
 
-    hate_prediction = float(out)
-
-    if hate_prediction >= 0.5:
-        return f"{class_names[1]}"
-    else:
-        return f"{class_names[0]}"
+        if hate_prediction >= 0.5:
+            return f"{class_names[1]}"
+        else:
+            return f"{class_names[0]}"
 
 
 
 ### SINGLE TWEET CLASSIFICATION ###
 st.subheader('Single tweet classification')
+
 
 # Get sentence input, preprocess it, and convert to flair.data.Sentence format
 tw = st.text_input('Tweet:')
@@ -89,9 +95,9 @@ if tw != '':
 
     if sentence == "Hate Speech":
 
-        zero_model = 'typeform/mobilebert-uncased-mnli'
+        #zero_model = 'typeform/mobilebert-uncased-mnli'
 
-        classifier = pipeline("zero-shot-classification", model=zero_model,tokenizer=config.TOKENIZER)
+        #classifier = pipeline("zero-shot-classification", model=zero_model,tokenizer=config.TOKENIZER)
 
         text = tw
         candidate_labels = ['Violent', 'Offensive', 'Profane']
@@ -168,9 +174,9 @@ if uploaded_file is not None:
 
       if sentiment == "Hate Speech":
           #tokenizer = AutoTokenizer.from_pretrained('typeform/mobilebert-uncased-mnli')
-          zero_model = 'typeform/mobilebert-uncased-mnli'
+          #zero_model = 'typeform/mobilebert-uncased-mnli'
 
-          classifier = pipeline("zero-shot-classification", model=zero_model,tokenizer=config.TOKENIZER)
+          #classifier = pipeline("zero-shot-classification", model=zero_model,tokenizer=config.TOKENIZER)
 
           text = tweet
           candidate_labels = ['Violent', 'Offensive', 'Profane']
