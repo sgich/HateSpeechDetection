@@ -20,18 +20,11 @@ st.title('Twitter Hate Speech Detection')
 
 device = torch.device("cpu")
 
-#define supervised model
-model = HateSpeechClassifier()
-model.load_state_dict(torch.load(config.MODEL_PATH, map_location=torch.device('cpu')))
-
-#define the zero_shot model
-zero_model = 'typeform/mobilebert-uncased-mnli'
-
-classifier = pipeline("zero-shot-classification", model=zero_model, tokenizer=config.TOKENIZER)
-
-#@st.cache
 # Load classification model
 with st.spinner('Loading classification model...'):
+
+    model = HateSpeechClassifier()
+    model.load_state_dict(torch.load(config.MODEL_PATH, map_location=torch.device('cpu')))
 
     @st.cache(allow_output_mutation=True)
     def sentence_prediction(tw, model):
@@ -96,6 +89,10 @@ if tw != '':
         #sentence
     #
     if sentence == "Hate Speech":
+
+        zero_model = 'typeform/mobilebert-uncased-mnli'
+
+        classifier = pipeline("zero-shot-classification", model=zero_model, tokenizer=config.TOKENIZER)
 
         text = tw
         candidate_labels = ['Violent', 'Offensive', 'Profane']
@@ -185,6 +182,11 @@ if uploaded_file is not None:
           columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level'])
 
       if sentiment == "Hate Speech":
+
+          zero_model = 'typeform/mobilebert-uncased-mnli'
+
+          classifier = pipeline("zero-shot-classification", model=zero_model, tokenizer=config.TOKENIZER)
+
           text = tweet
           candidate_labels = ['Violent', 'Offensive', 'Profane']
           result = classifier(text, candidate_labels)
