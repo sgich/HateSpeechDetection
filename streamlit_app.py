@@ -31,11 +31,11 @@ st.set_page_config(layout="wide")
 #---------------------------------#
 # Title
 
-image = Image.open('C:/Users/sgich/Desktop/EaglesFinal/4.PNG')
+image = Image.open('4.PNG')
 
 st.image(image, width = None)
 
-df = pd.read_csv('C:/Users/sgich/Desktop/EaglesFinal/input/merged_hatespeech_dataset - merged_hatespeech_dataset.csv')
+df = pd.read_csv('data/merged_hatespeech_dataset - merged_hatespeech_dataset.csv')
 
 df['hate_speech(1=hspeech, 0=nohspeech)'] = np.where(df['hate_speech(1=hspeech, 0=nohspeech)']==1,'Hate speech','Normal speech')
 
@@ -53,13 +53,13 @@ region = df['location'].unique()
 selected_region = col1.selectbox('Select region', region)
 
 ## Sidebar - Start and End date
-#start_date = col1.date_input('Start date')
-#start_date = pd.to_datetime(start_date)
-#end_date = col1.date_input('End date')
-#end_date = pd.to_datetime(end_date)
+start_date = col1.date_input('Start date')
+start_date = pd.to_datetime(start_date)
+end_date = col1.date_input('End date')
+end_date = pd.to_datetime(end_date)
 
 
-date_range = col1.date_input('Date Range',value=(datetime(2020, 1, 1), datetime(2030, 1, 1)), help="choose a range or click same day twice") #,datetime(2021, 4, 17),datetime(2021, 4, 27))
+# date_range = col1.date_input('Date Range',value=(datetime(2020, 1, 1), datetime(2030, 1, 1)), help="choose a range or click same day twice") #,datetime(2021, 4, 17),datetime(2021, 4, 27))
 
 #end_start = col1.date_input('End Date',datetime(2021, 4, 17),datetime(2021, 4, 27))
 #d5 = col1.date_input("date range without default", [datetime(2019, 7, 6), datetime(2019, 7, 8)])
@@ -223,7 +223,9 @@ expander_bar_2.subheader('Offline Batch tweet classification')
 # Initialize empty dataframe
 tweet_data = pd.DataFrame({
     'tweet': [],
-    'predicted-sentiment': []
+    'predicted-sentiment': [],
+    'location':[],
+    'tweet_date':[]
   })
 
 uploaded_file = expander_bar_2.file_uploader("Choose a file")
@@ -234,15 +236,16 @@ if uploaded_file is not None:
 
   # classify tweet
 
-  for tweet in df['tweet']:
+  for index, row in df.iterrows():
+#   for tweet,location,tweet_date in df[['tweet','location','tweet_date']]:
 
       # Skip iteration if tweet is empty
-      if tweet in ('', ' '):
+      if row['tweet'] in ('', ' '):
           continue
 
       # Make predictions
       class_names = ['Hate Speech', 'Normal Speech']
-      sentence = sentence_prediction(tweet, model)
+      sentence = sentence_prediction(row['tweet'], model)
 
       # classifier.predict(sentence)
       sentiment = sentence
@@ -255,7 +258,7 @@ if uploaded_file is not None:
 
           classifier = pipeline("zero-shot-classification", model=zero_model,tokenizer=config.TOKENIZER)
 
-          text = tweet
+          text = row['tweet']
           candidate_labels = ['Violent', 'Offensive', 'Profane']
           result = classifier(text, candidate_labels)
 
@@ -268,19 +271,17 @@ if uploaded_file is not None:
           clus_c = clus['Confidence Level'].values
           clus_cc = round(clus_c[0], 2)
 
-          tweet_data = tweet_data.append({'tweet': tweet, 'predicted-sentiment': sentiment, 'hate sub-cluster': clus_pp,
-                                          'confidence level': clus_cc}, ignore_index=True)
+          tweet_data = tweet_data.append({'tweet': row['tweet'], 'predicted-sentiment': sentiment, 'hate sub-cluster': clus_pp,
+                                          'confidence level': clus_cc, 'location':row['location'],'tweet_date': row['tweet_date']}, ignore_index=True)
           tweet_data = tweet_data.reindex(
-              columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level'])
+              columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level', 'location','tweet_date'])
 
       else:
 
           non = ''
-          tweet_data = tweet_data.append(
-              {'tweet': tweet, 'predicted-sentiment': sentiment, 'hate sub-cluster': non, 'confidence level': non},
-              ignore_index=True)
+          tweet_data = tweet_data.append({'tweet': row['tweet'], 'predicted-sentiment': sentiment, 'hate sub-cluster': non, 'confidence level': non, 'location':row['location'],'tweet_date': row['tweet_date']}, ignore_index=True)
           tweet_data = tweet_data.reindex(
-              columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level'])
+              columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level', 'location','tweet_date'])
 
 # As long as the query is valid (not empty or equal to '#')...
 
@@ -290,14 +291,18 @@ if uploaded_file is not None:
 
 # Show query data and sentiment if available
 try:
-    expander_bar_2.write(tweet_data)
+    tweet_data['tweet_date'] =pd.to_datetime(tweet_data['tweet_date'])
+    tweet_data_filtered = tweet_data[(tweet_data['location']==selected_region) & (tweet_data['tweet_date']>=start_date) & (tweet_data['tweet_date']<=end_date)]
+    expander_bar_2.write(tweet_data_filtered)
 except NameError: # if no queries have been made yet
     pass
 #---------------------------------#
 
 # Overview of extracted tweets
+tweet_data['tweet_date'] =pd.to_datetime(tweet_data['tweet_date'])
+tweet_data_filtered = tweet_data[(tweet_data['location']==selected_region) & (tweet_data['tweet_date']>=start_date) & (tweet_data['tweet_date']<=end_date)]
 expander_bar_3 = st.beta_expander("Visual overview of loaded tweets")
-sentiment_count = tweet_data['predicted-sentiment'].value_counts()
+sentiment_count = tweet_data_filtered['predicted-sentiment'].value_counts()
 sentiment_count = pd.DataFrame({'Sentiments':sentiment_count.index,'Tweets':sentiment_count.values})
 
 # region_count = df['location'].value_counts()
@@ -318,7 +323,7 @@ else:
 #---------------------------------#
 # Hate speech tweets
 expander_bar_3 = st.beta_expander("View hatespeech tweets")
-df_hatespeech = tweet_data[tweet_data['predicted-sentiment']=='Hate Speech']
+df_hatespeech = tweet_data_filtered[tweet_data_filtered['predicted-sentiment']=='Hate Speech']
 if len(df_hatespeech) == 0:
     expander_bar_3.markdown('Nothing to show here since hate speech has not been detected in the set of uploaded tweets')
 else:
@@ -327,7 +332,7 @@ else:
 
 # Non-hatespeech tweets
 expander_bar_4 = st.beta_expander("View normal text tweets")
-df_normalspeech = tweet_data[tweet_data['predicted-sentiment']=='Normal Speech']
+df_normalspeech = tweet_data_filtered[tweet_data_filtered['predicted-sentiment']=='Normal Speech']
 if len(df_normalspeech) == 0:
     expander_bar_4.markdown('Nothing to show here since normal speech has not been detected in the set of uploaded tweets')
 else:
