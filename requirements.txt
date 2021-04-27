@@ -1,5 +1,5 @@
 -f https://download.pytorch.org/whl/torch_stable.html
-streamlit>0.66
-torch
-torchvision
+streamlit
+torch==1.8.1+cpu
 transformers
+tokenizers==0.10.2
