@@ -22,6 +22,7 @@ The model can be improved greatly by using a large and representative dataset an
 * Numpy Library
 * Matplotlib Library
 * Seaborn Library
+* Streamlit
 * Standard Library
 * SciPy Library
 * Sci-Kit Library
