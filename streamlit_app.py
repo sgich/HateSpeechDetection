@@ -31,11 +31,11 @@ st.set_page_config(layout="wide")
 #---------------------------------#
 # Title
 
-image = Image.open('4.PNG')
+image = Image.open('C:/Users/sgich/Desktop/EaglesFinal/4.PNG')
 
 st.image(image, width = None)
 
-df = pd.read_csv('data/merged_hatespeech_dataset - merged_hatespeech_dataset.csv')
+df = pd.read_csv('C:/Users/sgich/Desktop/EaglesFinal/input/merged_hatespeech_dataset - merged_hatespeech_dataset.csv')
 
 df['hate_speech(1=hspeech, 0=nohspeech)'] = np.where(df['hate_speech(1=hspeech, 0=nohspeech)']==1,'Hate speech','Normal speech')
 
@@ -53,17 +53,13 @@ region = df['location'].unique()
 selected_region = col1.selectbox('Select region', region)
 
 ## Sidebar - Start and End date
-start_date = col1.date_input('Start date')
+start_date = col1.date_input('Start date', min_value=datetime(2021, 4, 1),max_value=datetime(2021, 4, 29))
 start_date = pd.to_datetime(start_date)
-end_date = col1.date_input('End date')
+end_date = col1.date_input('End date', min_value=datetime(2021, 4, 1),max_value=datetime(2021, 4, 29))
 end_date = pd.to_datetime(end_date)
 
 
-# date_range = col1.date_input('Date Range',value=(datetime(2020, 1, 1), datetime(2030, 1, 1)), help="choose a range or click same day twice") #,datetime(2021, 4, 17),datetime(2021, 4, 27))
-
-#end_start = col1.date_input('End Date',datetime(2021, 4, 17),datetime(2021, 4, 27))
-#d5 = col1.date_input("date range without default", [datetime(2019, 7, 6), datetime(2019, 7, 8)])
-#col1.write(d5)
+#date_range = col1.date_input('Date Range',value=(datetime(2020, 1, 1), datetime(2030, 1, 1)), help="choose a range or click same day twice")
 
 #st.title('Twitter hatespeech detection tool')
 st.markdown("""
@@ -224,8 +220,8 @@ expander_bar_2.subheader('Offline Batch tweet classification')
 tweet_data = pd.DataFrame({
     'tweet': [],
     'predicted-sentiment': [],
-    'location':[],
-    'tweet_date':[]
+    'location': [],
+    'tweet_date': []
   })
 
 uploaded_file = expander_bar_2.file_uploader("Choose a file")
@@ -236,10 +232,10 @@ if uploaded_file is not None:
 
   # classify tweet
 
+  #for tweet in df['tweet']:
   for index, row in df.iterrows():
-#   for tweet,location,tweet_date in df[['tweet','location','tweet_date']]:
-
       # Skip iteration if tweet is empty
+      #if tweet in ('', ' '):
       if row['tweet'] in ('', ' '):
           continue
 
@@ -271,17 +267,37 @@ if uploaded_file is not None:
           clus_c = clus['Confidence Level'].values
           clus_cc = round(clus_c[0], 2)
 
-          tweet_data = tweet_data.append({'tweet': row['tweet'], 'predicted-sentiment': sentiment, 'hate sub-cluster': clus_pp,
-                                          'confidence level': clus_cc, 'location':row['location'],'tweet_date': row['tweet_date']}, ignore_index=True)
+          #tweet_data = tweet_data.append({'tweet': tweet, 'predicted-sentiment': sentiment, 'hate sub-cluster': clus_pp,
+          #                                'confidence level': clus_cc}, ignore_index=True)
+          tweet_data = tweet_data.append(
+              {'tweet': row['tweet'], 'predicted-sentiment': sentiment, 'hate sub-cluster': clus_pp,
+               'confidence level': clus_cc, 'location': row['location'], 'tweet_date': row['tweet_date']},
+              ignore_index=True)
+
+          #tweet_data = tweet_data.reindex(
+          #    columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level'])
+
           tweet_data = tweet_data.reindex(
-              columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level', 'location','tweet_date'])
+              columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level', 'location',
+                       'tweet_date'])
+
 
       else:
 
           non = ''
-          tweet_data = tweet_data.append({'tweet': row['tweet'], 'predicted-sentiment': sentiment, 'hate sub-cluster': non, 'confidence level': non, 'location':row['location'],'tweet_date': row['tweet_date']}, ignore_index=True)
+          #tweet_data = tweet_data.append(
+          #    {'tweet': tweet, 'predicted-sentiment': sentiment, 'hate sub-cluster': non, 'confidence level': non},
+          #    ignore_index=True)
+          tweet_data = tweet_data.append(
+              {'tweet': row['tweet'], 'predicted-sentiment': sentiment, 'hate sub-cluster': non,
+               'confidence level': non, 'location': row['location'], 'tweet_date': row['tweet_date']},
+              ignore_index=True)
+
           tweet_data = tweet_data.reindex(
-              columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level', 'location','tweet_date'])
+              columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level', 'location',
+                       'tweet_date'])
+
+          #columns=['tweet', 'predicted-sentiment', 'hate sub-cluster', 'confidence level'])
 
 # As long as the query is valid (not empty or equal to '#')...
 
@@ -291,15 +307,18 @@ if uploaded_file is not None:
 
 # Show query data and sentiment if available
 try:
-    tweet_data['tweet_date'] =pd.to_datetime(tweet_data['tweet_date'])
-    tweet_data_filtered = tweet_data[(tweet_data['location']==selected_region) & (tweet_data['tweet_date']>=start_date) & (tweet_data['tweet_date']<=end_date)]
+    #expander_bar_2.write(tweet_data)
+    tweet_data['tweet_date'] = pd.to_datetime(tweet_data['tweet_date'])
+    tweet_data_filtered = tweet_data[
+        (tweet_data['location'] == selected_region) & (tweet_data['tweet_date'] >= start_date) & (
+                    tweet_data['tweet_date'] <= end_date)]
     expander_bar_2.write(tweet_data_filtered)
 except NameError: # if no queries have been made yet
     pass
 #---------------------------------#
 
 # Overview of extracted tweets
-tweet_data['tweet_date'] =pd.to_datetime(tweet_data['tweet_date'])
+tweet_data['tweet_date'] = pd.to_datetime(tweet_data['tweet_date'])
 tweet_data_filtered = tweet_data[(tweet_data['location']==selected_region) & (tweet_data['tweet_date']>=start_date) & (tweet_data['tweet_date']<=end_date)]
 expander_bar_3 = st.beta_expander("Visual overview of loaded tweets")
 sentiment_count = tweet_data_filtered['predicted-sentiment'].value_counts()
