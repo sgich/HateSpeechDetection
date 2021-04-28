@@ -38,6 +38,11 @@ The model can be improved greatly by using a large and representative dataset an
 The motivation for this project was to deliver a "Hate Speech" prediction model that was fairly accurate and provided automation for possible institutions such as NCIC Kenya where instead of a person going online to check whether "Hate Speech" related content has been posted then judging it they can use this automated method. 
 
 ## _Authors and Acknowledgment_ ##
+
+
+# Contributors
+sgich, cyruskimani, sheilanasimiyu, qadipo, LynnNjoroge
+
 Assistance: Technical Mentors of Moringa School (Nairobi, Kenya).
 
 ## License
