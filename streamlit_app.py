@@ -31,13 +31,13 @@ st.set_page_config(layout="wide")
 #---------------------------------#
 # Title
 
-image = Image.open('C:/Users/sgich/Desktop/EaglesFinal/4.PNG')
+image = Image.open('4.PNG')
 
 st.image(image, width = None)
 
-df = pd.read_csv('C:/Users/sgich/Desktop/EaglesFinal/input/merged_hatespeech_dataset - merged_hatespeech_dataset.csv')
+df = pd.read_csv('data/final_hatespeech_data - final_hatespeech_data.csv')
 
-df['hate_speech(1=hspeech, 0=nohspeech)'] = np.where(df['hate_speech(1=hspeech, 0=nohspeech)']==1,'Hate speech','Normal speech')
+df['label'] = np.where(df['label']==1,'Hate speech','Normal speech')
 
 # Page layout (continued)
 ## Divide page to 3 columns (col1 = sidebar, col2 and col3 = page contents)
@@ -49,7 +49,8 @@ col2, col3 = st.beta_columns((2,1))
 col1.header('Select options')
 
 ## Sidebar - Currency price unit
-region = df['location'].unique()
+locations = ['ELDORET', 'EMBU', 'GARISSA', 'GITHUNGURI', 'HOMA BAY', 'ISINYA', 'ISIOLO', 'JUJA', 'KABARAK', 'KABETE', 'KAJIADO', 'KAKAMEGA', 'KAPSABET', 'NAIROBI', 'KERICHO', 'KIAMBU']
+region = pd.DataFrame(locations)
 selected_region = col1.selectbox('Select region', region)
 
 ## Sidebar - Start and End date
@@ -72,9 +73,9 @@ expander_bar_1.markdown("""
 In an increasingly digital era where online social interactions are considered part of the social context, it is proving inevitable that machine learning should be used to protect people from harmful content. This has been evidenced by the multitude of instances where hate speech propagated online has led to physical injury and loss of lives across the world. Government institutions should now consider online interactions as spaces where potential crimes may occur just like in the physical world.
 
 This tool identifies hatespeech as tweets that can be in following three formal classes:
-* **HATE:** : This class contains tweets which highlight negative attributes or deficiencies of certain groups of individuals. This class includes hateful comments towards individuals based on race, political opinion, sexual orientation, gender, social status, health condition, etc.
-* **OFFN:** : This class contains tweets which are degrading, dehumanizing or insulting towards an individual. It encompasses cases of threatening with violent acts.
-* **PRFN:** : This class contains tweets with explicit content, profane words or unacceptable language in the absence of insults and abuse. This typically concerns the usage of swearwords and cursing.
+* **HATE:** This class contains tweets which highlight negative attributes or deficiencies of certain groups of individuals. This class includes hateful comments towards individuals based on race, political opinion, sexual orientation, gender, social status, health condition, etc.
+* **OFFN:** This class contains tweets which are degrading, dehumanizing or insulting towards an individual. It encompasses cases of threatening with violent acts.
+* **PRFN:** This class contains tweets with explicit content, profane words or unacceptable language in the absence of insults and abuse. This typically concerns the usage of swearwords and cursing.
 
 Political hate speech is the greatest area of concern in regards to Kenya and thus this will be the area of focus for this tool.
 """)
@@ -308,6 +309,8 @@ if uploaded_file is not None:
 # Show query data and sentiment if available
 try:
     #expander_bar_2.write(tweet_data)
+    tweet_data.to_csv("predicted_tweet_data")
+    
     tweet_data['tweet_date'] = pd.to_datetime(tweet_data['tweet_date'])
     tweet_data_filtered = tweet_data[
         (tweet_data['location'] == selected_region) & (tweet_data['tweet_date'] >= start_date) & (
