@@ -64,7 +64,7 @@ end_date = pd.to_datetime(end_date)
 
 #st.title('Twitter hatespeech detection tool')
 st.markdown("""
-This tool extracts tweets from twitter and classifies them as **hate speech or non-hatespeech**!
+This tool classifies tweets as **hate speech or non-hatespeech**!
 """)
 #---------------------------------#
 # About
